@@ -154,11 +154,11 @@ def run_model(surface_h):
     return model
 
 if __name__ == '__main__':
-    v_bed_h=np.vectorize(bed_h)
-    import time
-    start=time.time()
-    x0 = np.linspace(3400, 1400,15)
+    #v_bed_h=np.vectorize(bed_h)
 
+    x0 = np.linspace(3400, 1400,40)
+
+    #x0=pickle.load(open('/home/juliaeis/PycharmProjects/find_inital_state/fls_150.pkl','rb')).fls[-1].surface_h[np.linspace(0,199,40).astype(int)]
     #print(x_coord)
     cons = ({'type': 'ineq', 'fun': con1},
             {'type': 'ineq', 'fun': con2},
@@ -170,45 +170,54 @@ if __name__ == '__main__':
     #res = minimize(objfunc, x0,method='COBYLA',tol=1e-04,constraints=cons,options={'maxiter':5000,'rhobeg' :50})
     #res = minimize(objfunc, x0, method='Nelder-Mead', tol=1e-04, options={'maxiter': 5000})
 
-    print(time.time()-start)
-    '''
-    plt.figure()
-    plt.plot(rescale(res.x,200),'r',label='result')
-    plt.plot(np.linspace(0,200,15),res.x, 'ro')
-    #plt.plot(np.linspace(0,200,15), res.x, 'r', label='result')
-    plt.plot(pickle.load(open('/home/juliaeis/PycharmProjects/find_inital_state/fls_150.pkl','rb')).fls[-1].surface_h,label='original')
-    plt.legend(loc='best')
-    '''
+
     import pickle
-    #pickle._dump(res.x,open('result.txt','wb'))
+    #pickle._dump(res.x,open('result_40pt.txt','wb'))
     #result=res.x
-    result=pickle.load(open('result.txt','rb'))
+    result=pickle.load(open('result_15pt.txt','rb'))
 
     start_model= run_model(result)
-    print(start_model.yr,start_model.length_m/start_model.fls[-1].dx_meter)
-    plt.plot(np.linspace(3400,1400,200),'k',label='bed',linewidth=1)
-    plt.plot(start_model.fls[-1].surface_h,color='teal', label='optimized initial state')
-    plt.plot(np.linspace(0,200,15),result,'o',color='teal')
-    plt.plot(pickle.load(
+    print(objfunc(result))
+    print(start_model.length_m, start_model.area_m2,start_model.volume_m3)
+    #print(start_model.yr,start_model.length_m/start_model.fls[-1].dx_meter)
+
+    f, axarr = plt.subplots(2, sharex=True)
+
+    axarr[0].plot(np.linspace(3400,1400,200),'k',label='bed',linewidth=1)
+    axarr[0].plot(pickle.load(
         open('/home/juliaeis/PycharmProjects/find_inital_state/fls_150.pkl',
-             'rb')).fls[-1].surface_h,'--', color='teal',label='"real" initial state')
+             'rb')).fls[-1].surface_h, color='teal',
+             label='"real" initial state')
+    axarr[0].plot(start_model.fls[-1].surface_h, color='tomato',label='optimized initial state')
+    axarr[0].plot(np.linspace(0,200,15),result, 'o',color = 'tomato')
+    axarr[0].legend(loc='best')
+    axarr[0].set_ylabel('Altitude (m)')
+    axarr[0].set_title('t=150')
+
+    start_model.run_until(300)
+    axarr[1].plot(np.linspace(3400, 1400, 200), 'k', label='bed', linewidth=1)
+    axarr[1].plot(pickle.load(open('/home/juliaeis/PycharmProjects/find_inital_state/fls_300.pkl','rb')).fls[-1].surface_h, color='teal',label='"real" final state')
+    axarr[1].plot(start_model.fls[-1].surface_h,color='tomato', label='optimized initial state')
+    axarr[1].set_title('t=300')
+    #plt.plot(np.linspace(0,200,200),result,'o',color='teal')
+    #plt.plot(pickle.load(
+    #    open('/home/juliaeis/PycharmProjects/find_inital_state/fls_150.pkl',
+    #         'rb')).fls[-1].surface_h, color='aquamarine',label='"real" initial state')
 
     #oggm_length=int(start_model.fls[-1].length_m / start_model.fls[-1].dx_meter)
 
+
+
     start_model.run_until(300)
-    plt.plot(start_model.fls[-1].surface_h, color='tomato',label='opitmized t=300')
-    plt.plot(pickle.load(
-        open('/home/juliaeis/PycharmProjects/find_inital_state/fls_300.pkl',
-             'rb')).fls[-1].surface_h, '--', color='r',
-             label='"real" final state')
+    #plt.plot(start_model.fls[-1].surface_h, color='tomato',label='opitmized t=300')
+    #plt.plot(pickle.load(
+    #    open('/home/juliaeis/PycharmProjects/find_inital_state/fls_300.pkl',
+    #         'rb')).fls[-1].surface_h,  color='teal',
+    #         label='"real" final state')
 
     plt.legend(loc='best')
     plt.xlabel('Grid Points')
     plt.ylabel('Altitude (m)')
-
-    plt.figure()
-    plt.plot(np.linspace(3400, 1400, 200) - rescale(result, 200))
-    plt.plot(np.zeros(200), 'k--')
 
     plt.show()
     '''

@@ -132,14 +132,45 @@ if __name__ == '__main__':
             {'type': 'ineq', 'fun': con4},
             {'type': 'ineq', 'fun': con5},
             )
-    res = minimize(obj, x0, method='COBYLA', tol=1e-04, constraints=cons,
-                    options={'maxiter': 5000, 'rhobeg': 50})
+    #res = minimize(obj, x0, method='COBYLA', tol=1e-04, constraints=cons,options={'maxiter': 5000, 'rhobeg': 50})
 
     #pickle.dump(res,open('result_multishot.txt', 'wb'))
-    mb_model = LinearMassBalanceModel(3000, grad=4)
+    #mb_model = LinearMassBalanceModel(3000, grad=4)
     res = pickle.load(open('result_multishot.txt', 'rb'))
     opt_model = run_model(res.x[:int(len(res.x)/2)])
 
+    f, axarr = plt.subplots(3, sharex=True)
+    axarr[0].plot(np.linspace(3400, 1400, 200),'k',label='bedrock')
+    axarr[0].plot(initial_flowline.fls[-1].surface_h,color='teal', label='"real" inital state')
+    axarr[0].plot(np.linspace(0,200,15),res.x[:int(len(res.x)/2)], 'o',color='gold',)
+    axarr[0].plot(opt_model.fls[-1].surface_h, color='gold', label='optimized initial state 150')
+    axarr[0].set_ylabel('Altitude (m)')
+    axarr[0].set_title('t=150')
+    axarr[0].legend(loc='best')
+
+    initial_flowline.run_until(175)
+    opt_model.run_until(175)
+
+    axarr[1].plot(np.linspace(3400, 1400, 200),'k',label='bedrock')
+    axarr[1].plot(initial_flowline.fls[-1].surface_h, color='teal',label='"real" state')
+    axarr[1].plot(opt_model.fls[-1].surface_h, color='gold', label= 'optimized state 150')
+    axarr[1].plot(np.linspace(0,200,15),res.x[int(len(res.x)/2):],'o',color='tomato')
+    axarr[1].plot(np.linspace(0, 200, 15), res.x[int(len(res.x) / 2):],color='tomato', label='optimized state 175')
+    axarr[1].set_ylabel('Altitude (m)')
+    axarr[1].set_title('t=175')
+    axarr[1].legend(loc='best')
+    initial_flowline.run_until(300)
+    opt_model2= run_model(res.x[int(len(res.x)/2):])
+    opt_model2.reset_y0(175)
+    opt_model2.run_until(300)
+
+    axarr[2].plot(np.linspace(3400, 1400, 200),'k',label='bedrock')
+    axarr[2].plot(initial_flowline.fls[-1].surface_h, color='teal',label='"real" state')
+    axarr[2].plot(opt_model2.fls[-1].surface_h, color='tomato', label= 'optimized state 175')
+    axarr[2].set_ylabel('Altitude (m)')
+    axarr[2].set_title('t=300')
+    axarr[2].legend(loc='best')
+    '''
     plt.figure(1)
     plt.plot(rescale(res.x[:int(len(res.x)/2)],200),label='rescale')
     plt.plot(np.linspace(3400, 1400, 200),'k--',label='bedrock')
@@ -165,4 +196,5 @@ if __name__ == '__main__':
     plt.plot(opt_model.fls[-1].surface_h,label='optimized t=300')
     #plt.plot(opt_model.fls[-1].surface_h[np.linspace(0,200,15)],'o')
     plt.legend(loc='best')
+    '''
     plt.show()

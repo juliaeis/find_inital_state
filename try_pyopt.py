@@ -158,7 +158,7 @@ if __name__ == '__main__':
 
     x0 = np.linspace(3400, 1400,40)
 
-    #x0=pickle.load(open('/home/juliaeis/PycharmProjects/find_inital_state/fls_150.pkl','rb')).fls[-1].surface_h[np.linspace(0,199,40).astype(int)]
+    x0=pickle.load(open('/home/juliaeis/PycharmProjects/find_inital_state/fls_300.pkl','rb')).fls[-1].surface_h[np.linspace(0,199,30).astype(int)]
     #print(x_coord)
     cons = ({'type': 'ineq', 'fun': con1},
             {'type': 'ineq', 'fun': con2},
@@ -172,9 +172,9 @@ if __name__ == '__main__':
 
 
     import pickle
-    #pickle._dump(res.x,open('result_40pt.txt','wb'))
+    #pickle._dump(res.x,open('result_30pt_final.txt','wb'))
     #result=res.x
-    result=pickle.load(open('result_15pt.txt','rb'))
+    result=pickle.load(open('result_30pt_final.txt','rb'))
 
     start_model= run_model(result)
     print(objfunc(result))
@@ -189,7 +189,7 @@ if __name__ == '__main__':
              'rb')).fls[-1].surface_h, color='teal',
              label='"real" initial state')
     axarr[0].plot(start_model.fls[-1].surface_h, color='tomato',label='optimized initial state')
-    axarr[0].plot(np.linspace(0,200,15),result, 'o',color = 'tomato')
+    axarr[0].plot(np.linspace(0,200,30),result, 'o',color = 'tomato')
     axarr[0].legend(loc='best')
     axarr[0].set_ylabel('Altitude (m)')
     axarr[0].set_title('t=150')

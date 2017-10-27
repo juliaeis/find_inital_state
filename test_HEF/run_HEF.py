@@ -1,86 +1,107 @@
-import os
-import geopandas as gpd
-import oggm
-import salem
+from scipy.optimize import minimize
+# Scientific packages
 import numpy as np
-import pandas as pd
-import xarray as xr
-import matplotlib.pyplot as plt
-from oggm import cfg, tasks,workflow,graphics
-from oggm.utils import get_demo_file
-from oggm.core.preprocessing.climate import (mb_yearly_climate_on_glacier,
-                                             t_star_from_refmb,
-                                             local_mustar_apparent_mb)
-from oggm.core.models.massbalance import (PastMassBalanceModel,
-                                          ConstantMassBalanceModel)
+# Constants
+from oggm import graphics,cfg
+from oggm.cfg import SEC_IN_YEAR, A
+# OGGM models
+from oggm.core.models.massbalance import LinearMassBalanceModel
 from oggm.core.models.flowline import FluxBasedModel
-from oggm.core.preprocessing.inversion import mass_conservation_inversion
-
-# Plot defaults
-#%matplotlib inline
+from oggm.core.models.flowline import VerticalWallFlowline, \
+    TrapezoidalFlowline, ParabolicFlowline
+# This is to set a default parameter to a function. Just ignore it for now
+from functools import partial
+import pickle
+from scipy.interpolate import UnivariateSpline
 import matplotlib.pyplot as plt
-# Packages
-import os
-import numpy as np
-import xarray as xr
-import shapely.geometry as shpg
+FlowlineModel = partial(FluxBasedModel, inplace=False)
+from oggm.core.models.massbalance import ConstantMassBalanceModel
+import math
+import multiprocessing as mp
+import copy
+from oggm.utils import get_demo_file
+import geopandas as gpd
+global gdir_hef
 
 plt.rcParams['figure.figsize'] = (8, 8)  # Default plot size
+
+def rescale(array, mx):
+    # interpolate bed_m to resolution of bed_h
+    old_indices = np.arange(0, len(array))
+    new_length = mx
+    new_indices = np.linspace(0, len(array) - 1, new_length)
+    spl = UnivariateSpline(old_indices, array, k=1, s=0)
+    new_array = spl(new_indices)
+    return new_array
+
+
+def run_model(fls,ice_thick):
+    nx = fls[-1].nx
+    today_model = ConstantMassBalanceModel(gdir_hef, y0=1985)
+    fls[-1].surface_h = rescale(ice_thick, nx)+fls[-1].bed_h
+    commit_model = FluxBasedModel(fls, mb_model=today_model, glen_a=cfg.A)
+    return commit_model
+
+
+def oggm_length_m(fls):
+    thick = fls[-1].surface_h-fls[-1].bed_h
+    # We define the length a bit differently: but more robust
+    pok = np.where(thick > 0.)[0]
+    return len(pok)* fls[-1].dx * fls[-1].map_dx
+
+
+def min_length_m(fls):
+    thick = fls[-1].surface_h-fls[-1].bed_h
+    # We define the length a bit differently: but more robust
+    pok = np.where(thick < 3.)[0]
+    return pok[0]* fls[-1].dx * fls[-1].map_dx
+
+
 if __name__ == '__main__':
 
     cfg.initialize()
-    srtm_f = get_demo_file('srtm_oetztal.tif')
-    rgi_f = get_demo_file('rgi_oetztal.shp')
-    rgi_shp = salem.read_shapefile(rgi_f).set_index('RGIId')
-    #rgi_shp.plot()
+    gdir_hef=pickle.load(open('gdir_hef.pkl','rb'))
+    fls = pickle.load(open('HEF_fls.pkl', 'rb'))
+    ice_thick = fls[-1].surface_h-fls[-1].bed_h
 
+    model=run_model(fls,ice_thick[np.linspace(0,fls[-1].nx-1,15).astype(int)])
+    model.run_until(100)
+    print(model.fls[-1].bed_h)
+    x = np.arange(fls[-1].nx) * fls[-1].dx * fls[-1].map_dx
+    plt.figure(0)
+    plt.plot(x,fls[-1].bed_h,'k')
+    ice_thick=model.fls[-1].surface_h-model.fls[-1].bed_h
 
-    cfg.PATHS['dem_file']=srtm_f
-    cfg.PATHS['climate_file']=get_demo_file('HISTALP_oetztal.nc')
-    base_dir = os.path.join('/home/juliaeis/Dokumente/OGGM/work_dir','find_initial_state_HEF')
-    cfg.PARAMS['border']=80
-    cfg.PATHS['working_dir']=base_dir
-    rgidf = gpd.GeoDataFrame.from_file(rgi_f)
-    gdirs =oggm.workflow.init_glacier_regions(rgidf, reset=False)
-    '''
-    list_talks = [
-        tasks.glacier_masks,
-        tasks.compute_centerlines,
-        tasks.compute_downstream_lines,
-        tasks.catchment_area,
-        tasks.initialize_flowlines,
-        tasks.catchment_width_geom,
-        tasks.catchment_width_correction,
-        tasks.compute_downstream_bedshape
-        ]
-    for task in list_talks:
-        workflow.execute_entity_task(task,gdirs)
+    #plt.plot(x,ice_thick+model.fls[-1].bed_h,color='teal')
+    #plt.plot(x[np.linspace(0,fls[-1].nx-1,15).astype(int)],ice_thick[np.linspace(0,fls[-1].nx-1,15).astype(int)]+fls[-1].bed_h[np.linspace(0,fls[-1].nx-1,15).astype(int)],color='r')
+    plt.plot(x,rescale(ice_thick[np.linspace(0,fls[-1].nx-1,15).astype(int)],fls[-1].nx) +fls[-1].bed_h,color='teal',label='surface_h[15 grid points]')
+    plt.plot(x[np.linspace(0,fls[-1].nx-1,15).astype(int)],ice_thick[np.linspace(0,fls[-1].nx-1,15).astype(int)]+fls[-1].bed_h[np.linspace(0,fls[-1].nx-1,15).astype(int)],'o',color='teal')
 
-    # climate
-    #workflow.climate_tasks(gdirs)
-    #workflow.execute_entity_task(tasks.prepare_for_inversion,gdirs)
-    '''
-    #only HEF
-    gdir_hef = [gd for gd in gdirs if (gd.rgi_id ==  'RGI50-11.00897')][0]
-    '''
-    glen_a = cfg.A
-    vol_m3,area_m3 = mass_conservation_inversion(gdir_hef,glen_a=glen_a)
-    print('With A={}, the mean thickness of HEF is {:.1f} m'.format(glen_a, vol_m3/area_m3))
-    graphics.plot_inversion(gdir_hef,add_scalebar=False)
+    plt.plot(x,
+             rescale(ice_thick[np.linspace(0, fls[-1].nx - 1, 30).astype(int)],
+                     fls[-1].nx) + fls[-1].bed_h, color='orange',
+             label='surface_h[15 grid points]')
+    plt.plot(x[np.linspace(0, fls[-1].nx - 1, 30).astype(int)],
+             ice_thick[np.linspace(0, fls[-1].nx - 1, 30).astype(int)] +
+             fls[-1].bed_h[np.linspace(0, fls[-1].nx - 1, 30).astype(int)],
+             'o', color='orange')
+    plt.plot(x, model.fls[-1].surface_h)
+    plt.legend(loc='best')
+    plt.xlabel('Distance along the flowline (m)')
+    plt.ylabel('Altitude (m)')
 
-    optim_results = tasks.optimize_inversion_params(gdirs)
+    plt.figure(1)
+    plt.plot(x,ice_thick,label='ice thickness')
+    plt.plot(x[np.linspace(0,fls[-1].nx-1,15).astype(int)],ice_thick[np.linspace(0,fls[-1].nx-1,15).astype(int)],color='teal',label='ice thickness[15 grid points]')
+    plt.plot(x[np.linspace(0, fls[-1].nx - 1, 15).astype(int)],ice_thick[np.linspace(0, fls[-1].nx - 1, 15).astype(int)],'o', color='teal')
 
-    workflow.execute_entity_task(tasks.volume_inversion, gdirs)
-    workflow.execute_entity_task(tasks.filter_inversion_output, gdirs)
-    '''
-    tasks.init_present_time_glacier(gdir_hef)
-    fls = gdir_hef.read_pickle('model_flowlines')
-    model = FluxBasedModel(fls)
-    #graphics.plot_modeloutput_map(gdir_hef,model=model,add_scalebar=False)
-    graphics.plot_centerlines(gdir_hef,add_scalebar=False)
-    #plt.show()
-    for i in range(len(model.fls)):
-        plt.figure(i)
-        plt.plot(model.fls[i].bed_h)
-        plt.plot(model.fls[i].surface_h)
+    plt.plot(x[np.linspace(0, fls[-1].nx - 1, 30).astype(int)],
+             ice_thick[np.linspace(0, fls[-1].nx - 1, 30).astype(int)],
+             color='orange', label='ice thickness[30 grid points]')
+    plt.plot(x[np.linspace(0, fls[-1].nx - 1, 30).astype(int)],
+             ice_thick[np.linspace(0, fls[-1].nx - 1, 30).astype(int)], 'o',
+             color='orange')
+    plt.legend(loc='best')
+    plt.xlabel('Distance along the flowline (m)')
+    plt.ylabel('Altitude (m)')
     plt.show()

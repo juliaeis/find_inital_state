@@ -18,6 +18,16 @@ import math
 import multiprocessing as mp
 import copy
 
+def min_length_m(fls):
+    thick = fls[-1].surface_h-fls[-1].bed_h
+    # We define the length a bit differently: but more robust
+    pok = np.where(thick == 0.)[0]
+    try:
+        return pok[0] * fls[-1].dx_meter
+    except:
+        return fls[-1].length_m
+
+
 def rescale(array, mx):
     # interpolate bed_m to resolution of bed_h
     old_indices = np.arange(0, len(array))
@@ -65,15 +75,15 @@ def obj(array):
     except:
         return np.nan
     #minimize difference between measurements
-    f1=sum(abs(results[1].fls[-1].surface_h - final_flowline.fls[-1].surface_h)) +\
-       abs(results[1].area_km2 - final_flowline.area_km2)+\
-       abs(results[1].volume_km3 - final_flowline.volume_km3)
-    # abs(results[1].length_m - final_flowline.length_m)
+    f1=sum(abs(results[1].fls[-1].surface_h - final_flowline.fls[-1].surface_h)) + \
+       abs(results[1].area_km2 - final_flowline.area_km2)+abs(results[1].volume_km3 - final_flowline.volume_km3)+\
+       abs(min_length_m(results[1].fls) - min_length_m(final_flowline.fls))
+
     #minimize difference between shots
     f2=sum(abs(results[0].fls[-1].surface_h-results1.fls[-1].surface_h))+\
-       abs(results1.length_m - results[0].length_m)#+\
-       #abs(results1.area_km2 - results[0].area_km2)+\
-       #abs(results1.volume_km3 - results[0].volume_km3)
+       abs(results1.area_km2 - results[0].area_km2)+abs(results1.volume_km3 - results[0].volume_km3)+\
+       abs(min_length_m(results1.fls) - min_length_m(results[0].fls))
+
     print(f1+f2)
     return(f1+f2)
 
@@ -118,12 +128,19 @@ def con5(array):
     return 10-(abs(final_flowline.fls[-1].surface_h[0]-array[0][0]))
 
 
+def glacier_length(surface_h):
+    bed_h = np.linspace(3400, 1400, 200)
+    h = rescale(surface_h, 200)
+    length = np.where(h - bed_h < 5)[0][0]
+    coord = np.linspace(0, 200, len(surface_h))
+    length_index = np.where(coord > length)[0][0]
+    return [length_index,length]
 
 if __name__ == '__main__':
     global final_flowline
     final_flowline = pickle.load(open('/home/juliaeis/PycharmProjects/find_inital_state/fls_300.pkl','rb'))
     initial_flowline = pickle.load(open('/home/juliaeis/PycharmProjects/find_inital_state/fls_150.pkl','rb'))
-
+    #x0 = np.concatenate((rescale(final_flowline.fls[-1].surface_h,15),rescale(final_flowline.fls[-1].surface_h,15)))
     x0 = np.concatenate((np.linspace(3400, 1400, 15),np.linspace(3400,1400,15)))
     #obj(x0)
     cons = ({'type': 'ineq', 'fun': con1},
@@ -132,13 +149,13 @@ if __name__ == '__main__':
             {'type': 'ineq', 'fun': con4},
             {'type': 'ineq', 'fun': con5},
             )
-    #res = minimize(obj, x0, method='COBYLA', tol=1e-04, constraints=cons,options={'maxiter': 5000, 'rhobeg': 50})
+    res = minimize(obj, x0, method='COBYLA', tol=1e-04, constraints=cons,options={'maxiter': 5000, 'rhobeg': 150})
 
     #pickle.dump(res,open('result_multishot.txt', 'wb'))
     #mb_model = LinearMassBalanceModel(3000, grad=4)
-    res = pickle.load(open('result_multishot.txt', 'rb'))
+    #res = pickle.load(open('result_multishot.txt', 'rb'))
     opt_model = run_model(res.x[:int(len(res.x)/2)])
-
+    #print(glacier_length(opt_model.fls[-1].surface_h),opt_model.length_m/opt_model.fls[-1].dx_meter)
     f, axarr = plt.subplots(3, sharex=True)
     axarr[0].plot(np.linspace(3400, 1400, 200),'k',label='bedrock')
     axarr[0].plot(initial_flowline.fls[-1].surface_h,color='teal', label='"real" inital state')
@@ -170,31 +187,5 @@ if __name__ == '__main__':
     axarr[2].set_ylabel('Altitude (m)')
     axarr[2].set_title('t=300')
     axarr[2].legend(loc='best')
-    '''
-    plt.figure(1)
-    plt.plot(rescale(res.x[:int(len(res.x)/2)],200),label='rescale')
-    plt.plot(np.linspace(3400, 1400, 200),'k--',label='bedrock')
-    plt.plot(initial_flowline.fls[-1].surface_h,'--', label='original t=150')
-    #plt.plot(opt_model.fls[-1].surface_h, label='optimized t=150')
-    plt.plot(np.linspace(0,200,15),res.x[:int(len(res.x)/2)], 'o')
-    plt.legend(loc='best')
 
-    plt.figure(2)
-    initial_flowline.run_until(175)
-    plt.plot(np.linspace(3400, 1400, 200), 'k--', label='bedrock')
-    plt.plot(initial_flowline.fls[-1].surface_h, label='original t=175')
-    opt_model.run_until(175)
-    plt.plot(opt_model.fls[-1].surface_h,label='optimized t=175')
-    plt.plot(np.linspace(0, 200, 15), res.x[int(len(res.x) / 2):], 'o')
-    plt.plot(run_model(res.x[int(len(res.x)/2):]).fls[-1].surface_h,label='optimzed t=175')
-    plt.legend(loc='best')
-
-    plt.figure(3)
-    opt_model.run_until(300)
-    plt.plot(np.linspace(3400, 1400, 200), 'k--', label='bedrock')
-    plt.plot(final_flowline.fls[-1].surface_h, label='original t=300')
-    plt.plot(opt_model.fls[-1].surface_h,label='optimized t=300')
-    #plt.plot(opt_model.fls[-1].surface_h[np.linspace(0,200,15)],'o')
-    plt.legend(loc='best')
-    '''
     plt.show()

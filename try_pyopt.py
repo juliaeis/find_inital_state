@@ -42,7 +42,7 @@ def objfunc(surface_h):
                                          widths=widths, map_dx=map_dx)
     # ELA at 3000m a.s.l., gradient 4 mm m-1
     mb_model = LinearMassBalanceModel(3000, grad=4)
-    annual_mb = mb_model.get_mb(surface_h) * SEC_IN_YEAR
+    #annual_mb = mb_model.get_mb(surface_h) * SEC_IN_YEAR
 
     # The model requires the initial glacier bed, a mass-balance model, and an initial time (the year y0)
     model = FlowlineModel(init_flowline, mb_model=mb_model, y0=150)
@@ -147,7 +147,7 @@ def run_model(surface_h):
                                          widths=widths, map_dx=map_dx)
     # ELA at 3000m a.s.l., gradient 4 mm m-1
     mb_model = LinearMassBalanceModel(3000, grad=4)
-    annual_mb = mb_model.get_mb(surface_h) * SEC_IN_YEAR
+#    annual_mb = mb_model.get_mb(surface_h) * SEC_IN_YEAR
 
     # The model requires the initial glacier bed, a mass-balance model, and an initial time (the year y0)
     model = FlowlineModel(init_flowline, mb_model=mb_model, y0=150)
@@ -158,7 +158,7 @@ if __name__ == '__main__':
 
     x0 = np.linspace(3400, 1400,40)
 
-    x0=pickle.load(open('/home/juliaeis/PycharmProjects/find_inital_state/fls_300.pkl','rb')).fls[-1].surface_h[np.linspace(0,199,30).astype(int)]
+    x0=pickle.load(open('/home/juliaeis/PycharmProjects/find_inital_state/fls_300.pkl','rb')).fls[-1].surface_h[np.linspace(0,199,15).astype(int)]
     #print(x_coord)
     cons = ({'type': 'ineq', 'fun': con1},
             {'type': 'ineq', 'fun': con2},
@@ -167,14 +167,14 @@ if __name__ == '__main__':
             {'type': 'ineq', 'fun': con5}
             )
 
-    #res = minimize(objfunc, x0,method='COBYLA',tol=1e-04,constraints=cons,options={'maxiter':5000,'rhobeg' :50})
+    res = minimize(objfunc, x0,method='COBYLA',tol=1e-04,constraints=cons,options={'maxiter':5000,'rhobeg' :50})
     #res = minimize(objfunc, x0, method='Nelder-Mead', tol=1e-04, options={'maxiter': 5000})
 
 
     import pickle
     #pickle._dump(res.x,open('result_30pt_final.txt','wb'))
-    #result=res.x
-    result=pickle.load(open('result_30pt_final.txt','rb'))
+    result=res.x
+    #result=pickle.load(open('result_30pt_final.txt','rb'))
 
     start_model= run_model(result)
     print(objfunc(result))
@@ -189,7 +189,7 @@ if __name__ == '__main__':
              'rb')).fls[-1].surface_h, color='teal',
              label='"real" initial state')
     axarr[0].plot(start_model.fls[-1].surface_h, color='tomato',label='optimized initial state')
-    axarr[0].plot(np.linspace(0,200,30),result, 'o',color = 'tomato')
+    axarr[0].plot(np.linspace(0,200,15),result, 'o',color = 'tomato')
     axarr[0].legend(loc='best')
     axarr[0].set_ylabel('Altitude (m)')
     axarr[0].set_title('t=150')

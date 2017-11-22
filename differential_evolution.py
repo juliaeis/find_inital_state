@@ -4,10 +4,10 @@ import numpy as np
 # Constants
 from oggm.cfg import SEC_IN_YEAR, A
 # OGGM models
-from oggm.core.models.massbalance import LinearMassBalanceModel
-from oggm.core.models.flowline import FluxBasedModel
-from oggm.core.models.flowline import VerticalWallFlowline, \
-    TrapezoidalFlowline, ParabolicFlowline
+from oggm.core.massbalance import LinearMassBalance
+from oggm.core.flowline import FluxBasedModel
+from oggm.core.flowline import RectangularBedFlowline
+
 # This is to set a default parameter to a function. Just ignore it for now
 from functools import partial
 import pickle
@@ -42,23 +42,27 @@ def objfunc(surface_h):
     # The units of widths is in "grid points", i.e. 3 grid points = 300 m in our case
     widths = np.zeros(nx) + 3.
     # Define our bed
-    init_flowline = VerticalWallFlowline(surface_h=rescale(surface_h,nx), bed_h=bed_h,
+    init_flowline = RectangularBedFlowline(surface_h=rescale(surface_h,nx), bed_h=bed_h,
                                          widths=widths, map_dx=map_dx)
     # ELA at 3000m a.s.l., gradient 4 mm m-1
-    mb_model = LinearMassBalanceModel(3000, grad=4)
-    annual_mb = mb_model.get_mb(surface_h) * SEC_IN_YEAR
+    mb_model = LinearMassBalance(3000, grad=4)
+
 
     # The model requires the initial glacier bed, a mass-balance model, and an initial time (the year y0)
     model = FlowlineModel(init_flowline, mb_model=mb_model, y0=150)
-    model.run_until(300)
+    try:
+        model.run_until(300)
 
-    measured = pickle.load(open('/home/juliaeis/PycharmProjects/find_inital_state/fls_300.pkl','rb'))
-    f = abs(model.fls[-1].surface_h - measured.fls[-1].surface_h)+\
-        abs(model.length_m-measured.length_m)+\
-        abs(model.area_km2-measured.area_km2)+\
-        abs(model.volume_km3-measured.volume_km3)
-    print(sum(f))
-    return sum(f)
+        measured = pickle.load(open('/home/juliaeis/PycharmProjects/find_inital_state/fls_300.pkl','rb'))
+        f = abs(model.fls[-1].surface_h - measured.fls[-1].surface_h)+\
+            abs(model.length_m-measured.length_m)+\
+            abs(model.area_km2-measured.area_km2)+\
+            abs(model.volume_km3-measured.volume_km3)
+        #print(sum(f))
+        return sum(f)
+    except:
+        return np.nan
+
 
 def con4(surface_h):
     h = rescale(surface_h,200)
@@ -71,16 +75,15 @@ def con4(surface_h):
 
 
 if __name__ == '__main__':
-    lb = [-3, -1]
-    ub = [2, 6]
-    bed_h = np.linspace(3400, 1400, 10)
+
+    bed_h = np.linspace(3400, 1400,200)
     upper_bounds = bed_h+500
 
-    xopt, fopt = pso(objfunc,bed_h,upper_bounds)
+    xopt, fopt = pso(objfunc,bed_h,upper_bounds,debug=True)
     #xopt, fopt = pso(banana, lb, ub, f_ieqcons=con)
 
     print(xopt, fopt)
-    plt.plot(np.linspace(0,200,10),xopt )
-    plt.plot(np.linspace(0, 200, 10), xopt,'o')
-    plt.plot(np.linspace(0,200,10),bed_h)
+    plt.plot(np.linspace(0,200,200),xopt )
+    plt.plot(np.linspace(0, 200,200), xopt,'o')
+    plt.plot(np.linspace(0,200,200),bed_h)
     plt.show()

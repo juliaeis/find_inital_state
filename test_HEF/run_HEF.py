@@ -5,17 +5,16 @@ import numpy as np
 from oggm import graphics,cfg
 from oggm.cfg import SEC_IN_YEAR, A
 # OGGM models
-from oggm.core.models.massbalance import LinearMassBalanceModel
-from oggm.core.models.flowline import FluxBasedModel
-from oggm.core.models.flowline import VerticalWallFlowline, \
-    TrapezoidalFlowline, ParabolicFlowline
+from oggm.core.massbalance import LinearMassBalance
+from oggm.core.flowline import FluxBasedModel
+from oggm.core.flowline import RectangularBedFlowline, TrapezoidalBedFlowline, ParabolicBedFlowline
 # This is to set a default parameter to a function. Just ignore it for now
 from functools import partial
 import pickle
 from scipy.interpolate import UnivariateSpline
 import matplotlib.pyplot as plt
 FlowlineModel = partial(FluxBasedModel, inplace=False)
-from oggm.core.models.massbalance import ConstantMassBalanceModel
+from oggm.core.massbalance import ConstantMassBalance
 import math
 import multiprocessing as mp
 import copy

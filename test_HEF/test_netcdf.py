@@ -7,63 +7,42 @@ import xarray as xr
 import matplotlib.pyplot as plt
 from oggm import cfg, tasks
 from oggm.utils import get_demo_file
-from oggm.core.preprocessing.climate import (mb_yearly_climate_on_glacier,
-                                             t_star_from_refmb,
-                                             local_mustar_apparent_mb)
-from oggm.core.models.massbalance import (PastMassBalanceModel,
-                                          ConstantMassBalanceModel)
-import matplotlib.pyplot as plt
-from oggm.core.models.flowline import FluxBasedModel
-
-
+from oggm.core.climate import (mb_yearly_climate_on_glacier, t_star_from_refmb)
+from oggm.core.massbalance import (PastMassBalance, ConstantMassBalance)
+from oggm.core.flowline import FluxBasedModel
 import oggm
-from oggm import cfg
+from oggm import cfg, workflow,graphics
 from oggm.utils import get_demo_file
-cfg.initialize()
-srtm_f = get_demo_file('srtm_oetztal.tif')
-rgi_f = get_demo_file('rgi_oetztal.shp')
-print(srtm_f)
-
-import salem  # https://github.com/fmaussion/salem
-rgi_shp = salem.read_shapefile(rgi_f).set_index('RGIId')
-
-# Plot defaults
-
-# Packages
-import os
-import numpy as np
-import xarray as xr
+import salem
 import shapely.geometry as shpg
+import pickle
+
 plt.rcParams['figure.figsize'] = (8, 8)  # Default plot size
-
-
-from oggm import cfg
-from oggm import workflow
 cfg.initialize()  # read the default parameter file
 cfg.PATHS['dem_file'] = get_demo_file('srtm_oetztal.tif')
 cfg.PATHS['climate_file'] = get_demo_file('HISTALP_oetztal.nc')
+cfg.PATHS['working_dir']='/home/juliaeis/PycharmProjects/find_inital_state/test_HEF'
 cfg.PARAMS['border'] = 80
 cfg.PARAMS['prcp_scaling_factor']
-import pickle
+cfg.PARAMS['run_mb_calibration'] = True
+cfg.PARAMS['optimize_inversion_params']=True
 
-# Read in the RGI file
-import geopandas as gpd
-rgi_file = get_demo_file('rgi_oetztal.shp')
-rgidf = gpd.GeoDataFrame.from_file(rgi_file)
-# Initialise directories
-# reset=True will ask for confirmation if the directories are already present:
-# this is very useful if you don't want to loose hours of computations because of a command gone wrong
 
-gdirs = workflow.init_glacier_regions(rgidf)
-from oggm import graphics
-gdir = gdirs[13]
+srtm_f = get_demo_file('srtm_oetztal.tif')
+rgi_f = get_demo_file('rgi_oetztal.shp')
 
-#workflow.execute_entity_task(tasks.glacier_masks, gdirs)
+rgi_shp = salem.read_shapefile(rgi_f)
+
+gdirs = workflow.init_glacier_regions(rgi_shp)
+#gdir = gdirs[13]
+
+workflow.execute_entity_task(tasks.glacier_masks, gdirs)
 gdir_hef = [gd for gd in gdirs if (gd.rgi_id == 'RGI50-11.00897')][0]
 '''
 list_talks = [
          tasks.compute_centerlines,
-         tasks.compute_downstream_lines,
+         tasks.compute_downstream_line,
+         tasks.compute_downstream_bedshape,
          tasks.catchment_area,
          tasks.initialize_flowlines,
          tasks.catchment_width_geom,
@@ -73,10 +52,10 @@ list_talks = [
 
 for task in list_talks:
     workflow.execute_entity_task(task, gdirs)
-
+'''
 workflow.climate_tasks(gdirs)
 workflow.execute_entity_task(tasks.prepare_for_inversion, gdirs)
-from oggm.core.preprocessing.inversion import mass_conservation_inversion
+from oggm.core.inversion import mass_conservation_inversion
 
 # Select HEF out of all glaciers
 
@@ -86,19 +65,21 @@ print('With A={}, the mean thickness of HEF is {:.1f} m'.format(glen_a, vol_m3/a
 optim_resuls = tasks.optimize_inversion_params(gdirs)
 
 workflow.execute_entity_task(tasks.volume_inversion, gdirs)
-workflow.execute_entity_task(tasks.filter_inversion_output, gdirs)'''
+workflow.execute_entity_task(tasks.filter_inversion_output, gdirs)
 tasks.init_present_time_glacier(gdir_hef)
 fls = gdir_hef.read_pickle('model_flowlines')
+
 model = FluxBasedModel(fls)
 surface_before=model.fls[-1].surface_h
-from oggm.core.models.massbalance import ConstantMassBalanceModel
-from oggm.core.models.massbalance import PastMassBalanceModel
-today_model = ConstantMassBalanceModel(gdir_hef, y0=1985)
+
+today_model = ConstantMassBalance(gdir_hef, y0=1985)
 
 commit_model = FluxBasedModel(fls, mb_model=today_model, glen_a=cfg.A)
 pickle.dump(gdir_hef,open('gdir_hef.pkl','wb'))
 plt.figure(0)
 #graphics.plot_modeloutput_section(gdir_hef, model=commit_model)
+graphics.plot_inversion(gdir_hef)
+plt.savefig(os.path.join(cfg.PATHS['working_dir '], 'rdn_lengths.png'), dpi=150)
 print(commit_model.length_m)
 
 commit_model.run_until(100)

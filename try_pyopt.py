@@ -4,10 +4,9 @@ import numpy as np
 # Constants
 from oggm.cfg import SEC_IN_YEAR, A
 # OGGM models
-from oggm.core.models.massbalance import LinearMassBalanceModel
-from oggm.core.models.flowline import FluxBasedModel
-from oggm.core.models.flowline import VerticalWallFlowline, \
-    TrapezoidalFlowline, ParabolicFlowline
+from oggm.core.massbalance import LinearMassBalance
+from oggm.core.flowline import FluxBasedModel
+from oggm.core.flowline import RectangularBedFlowline
 # This is to set a default parameter to a function. Just ignore it for now
 from functools import partial
 import pickle
@@ -25,6 +24,13 @@ def rescale(array, mx):
     new_array = spl(new_indices)
     return new_array
 
+
+def min_length_m(fls):
+    thick = fls[-1].surface_h-fls[-1].bed_h
+    # We define the length a bit differently: but more robust
+    pok = np.where(thick == 0.)[0]
+    return pok[0]* fls[-1].dx_meter
+
 def objfunc(surface_h):
     # glacier  bed
     # This is the bed rock, linearily decreasing from 3000m altitude to 1000m, in 200 steps
@@ -38,10 +44,10 @@ def objfunc(surface_h):
     # The units of widths is in "grid points", i.e. 3 grid points = 300 m in our case
     widths = np.zeros(nx) + 3.
     # Define our bed
-    init_flowline = VerticalWallFlowline(surface_h=rescale(surface_h,nx), bed_h=bed_h,
+    init_flowline = RectangularBedFlowline(surface_h=rescale(surface_h,nx), bed_h=bed_h,
                                          widths=widths, map_dx=map_dx)
     # ELA at 3000m a.s.l., gradient 4 mm m-1
-    mb_model = LinearMassBalanceModel(3000, grad=4)
+    mb_model = LinearMassBalance(3000, grad=4)
     #annual_mb = mb_model.get_mb(surface_h) * SEC_IN_YEAR
 
     # The model requires the initial glacier bed, a mass-balance model, and an initial time (the year y0)
@@ -50,39 +56,27 @@ def objfunc(surface_h):
 
     measured = pickle.load(open('/home/juliaeis/PycharmProjects/find_inital_state/fls_300.pkl','rb'))
     f = abs(model.fls[-1].surface_h - measured.fls[-1].surface_h)+\
-        abs(model.length_m-measured.length_m)+\
+        abs(min_length_m(model.fls)-measured.length_m)+\
         abs(model.area_km2-measured.area_km2)+\
         abs(model.volume_km3-measured.volume_km3)
     print(sum(f))
     return sum(f)
 
+
 def con1(surface_h):
     bed_h = np.linspace(3400,1400,len(surface_h))
     return surface_h-bed_h
-
-def bed_h(x):
-    return 3400-(10*x)
-
-def n_con1(surface_h):
-
-    return surface_h-v_bed_h(new_points)
 
 
 def con2(surface_h):
     bed_h = np.linspace(3400, 1400, len(surface_h))
     return bed_h+1000-surface_h
 
-def n_con2(surface_h):
-
-    return v_bed_h(new_points)+1000-surface_h
-
 
 def con3(surface_h):
     bed_h = np.linspace(3400, 1400, len(surface_h))
     return bed_h[-1]-surface_h[-1]
-def n_con3(surface_h):
-    bed_h = v_bed_h(new_points)
-    return bed_h[-1]-surface_h[-1]
+
 
 def con6(surface_h):
     h = rescale(surface_h, 60)
@@ -112,24 +106,6 @@ def con5(surface_h):
              'rb')).fls[-1].surface_h
     return 10-(abs(measured[0]-surface_h[0]))
 
-def obj2(surface_h):
-    #plt.plot(np.arange(0,60+1,5),surface_h,'o')
-    bed_h = np.linspace(3400, 1400, 200)[57:]
-    surface_h=np.concatenate((rescale(surface_h,60)[:57],bed_h))
-    model=run_model(surface_h)
-    #plt.plot(model.fls[-1].surface_h)
-    model.run_until(300)
-    #plt.plot(model.fls[-1].surface_h)
-    #plt.show()
-    measured = pickle.load(
-        open('/home/juliaeis/PycharmProjects/find_inital_state/fls_300.pkl',
-             'rb'))
-    f = abs(model.fls[-1].surface_h - measured.fls[-1].surface_h) + \
-        abs(model.length_m - measured.length_m) + \
-        abs(model.area_km2 - measured.area_km2) + \
-        abs(model.volume_km3 - measured.volume_km3)
-    print(sum(f))
-    return sum(f)
 
 def run_model(surface_h):
     nx = 200
@@ -142,29 +118,32 @@ def run_model(surface_h):
     # The units of widths is in "grid points", i.e. 3 grid points = 300 m in our case
     widths = np.zeros(nx) + 3.
     # Define our bed
-    init_flowline = VerticalWallFlowline(surface_h=rescale(surface_h, nx),
+    init_flowline = RectangularBedFlowline(surface_h=rescale(surface_h, nx),
                                          bed_h=bed_h,
                                          widths=widths, map_dx=map_dx)
     # ELA at 3000m a.s.l., gradient 4 mm m-1
-    mb_model = LinearMassBalanceModel(3000, grad=4)
+    mb_model = LinearMassBalance(3000, grad=4)
 #    annual_mb = mb_model.get_mb(surface_h) * SEC_IN_YEAR
 
     # The model requires the initial glacier bed, a mass-balance model, and an initial time (the year y0)
     model = FlowlineModel(init_flowline, mb_model=mb_model, y0=150)
     return model
 
+
 if __name__ == '__main__':
     #v_bed_h=np.vectorize(bed_h)
 
-    x0 = np.linspace(3400, 1400,40)
+    #x0 = np.linspace(3400, 1400,15)
 
-    x0=pickle.load(open('/home/juliaeis/PycharmProjects/find_inital_state/fls_300.pkl','rb')).fls[-1].surface_h[np.linspace(0,199,15).astype(int)]
+    #x0=pickle.load(open('/home/juliaeis/PycharmProjects/find_inital_state/fls_200.pkl','rb')).fls[-1].surface_h[np.linspace(0,199,30).astype(int)]
+    x0 = rescale(pickle.load(
+        open('/home/juliaeis/PycharmProjects/find_inital_state/result_15pt_noCon5.txt','rb')),200)
     #print(x_coord)
     cons = ({'type': 'ineq', 'fun': con1},
             {'type': 'ineq', 'fun': con2},
             {'type': 'ineq', 'fun': con3},
-            {'type': 'ineq', 'fun': con4},
-            {'type': 'ineq', 'fun': con5}
+            {'type': 'ineq', 'fun': con4}
+            #{'type': 'ineq', 'fun': con5}
             )
 
     res = minimize(objfunc, x0,method='COBYLA',tol=1e-04,constraints=cons,options={'maxiter':5000,'rhobeg' :50})
@@ -172,9 +151,9 @@ if __name__ == '__main__':
 
 
     import pickle
-    #pickle._dump(res.x,open('result_30pt_final.txt','wb'))
+    #pickle._dump(res.x,open('result_15pt_noCon5.txt','wb'))
     result=res.x
-    #result=pickle.load(open('result_30pt_final.txt','rb'))
+    #result=pickle.load(open('result_15pt.txt','rb'))
 
     start_model= run_model(result)
     print(objfunc(result))
@@ -189,7 +168,7 @@ if __name__ == '__main__':
              'rb')).fls[-1].surface_h, color='teal',
              label='"real" initial state')
     axarr[0].plot(start_model.fls[-1].surface_h, color='tomato',label='optimized initial state')
-    axarr[0].plot(np.linspace(0,200,15),result, 'o',color = 'tomato')
+    axarr[0].plot(np.linspace(0,200,200),result, 'o',color = 'tomato')
     axarr[0].legend(loc='best')
     axarr[0].set_ylabel('Altitude (m)')
     axarr[0].set_title('t=150')

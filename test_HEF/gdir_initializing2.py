@@ -88,6 +88,7 @@ def objfunc(param,gdir):
                 #abs(real_model.volume_m3-y_1900.volume_m3)
     except:
         f=np.inf
+    print(f)
     return f
 
 def con1(surface_h,gdir):
@@ -136,9 +137,8 @@ def parallel(rhobeg,x0,cons,gdir):
     res = minimize(objfunc, x0, args= (gdir,),method='COBYLA', tol=1e-04, constraints=cons,
                    options={'maxiter': 5, 'rhobeg': rhobeg})
 
-    if res.success:
-        return res.x
-
+    #if res.success:
+    return res.x
 
 
 def find_initial_state(gdir):
@@ -191,8 +191,8 @@ def find_initial_state(gdir):
     ax[1].set_ylabel('Altitude (m)')
     ax[1].set_xlabel('Distance along the flowline (m)')
     ax[1].set_title('1900')
-    plt.savefig(os.path.join(cfg.PATHS['working_dir'],'plots','surface_h',gdir.rgi_id+'.png'))
-
+    #plt.savefig(os.path.join(cfg.PATHS['working_dir'],'plots','surface_h',gdir.rgi_id+'.png'))
+    plt.show()
     print(gdir.rgi_id, 'finished')
 
 
@@ -217,7 +217,7 @@ if __name__ == '__main__':
 
     #prepare_for_initializing(gdirs)
     pool = mp.Pool()
-    pool.map(find_initial_state,gdirs)
+    pool.map(find_initial_state,gdirs[:2])
 
 
 

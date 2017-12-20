@@ -64,11 +64,11 @@ def objfunc(param,gdir,ela):
         model, real_model = run_model(param,gdir,ela)
         f = np.sum(abs(real_model.fls[-1].surface_h - y_1900.fls[-1].surface_h))**2 + \
                 abs(real_model.length_m - y_1900.length_m)**2 + \
-                abs(real_model.area_m2 - y_1900.area_m2) ** 2 + \
+                abs(real_model.area_m2 - y_1900.area_m2) + \
                 abs(real_model.volume_m3-y_1900.volume_m3)
     except:
         f=np.inf
-    print(param,f)
+    #print(param,f)
     return f
 
 def find_initial_state(gdir):
@@ -77,8 +77,6 @@ def find_initial_state(gdir):
     global y_1900
     global y_start
 
-
-    f, ax = plt.subplots(2, sharex=True)
     fls = gdir.read_pickle('model_flowlines')
     past_climate = PastMassBalance(gdir)
     commit_model = FluxBasedModel(fls, mb_model=past_climate,
@@ -86,40 +84,74 @@ def find_initial_state(gdir):
     y_1850 = copy.deepcopy(commit_model)
     commit_model.run_until(1900)
     y_1900 = copy.deepcopy(commit_model)
+    x = np.arange(y_1900.fls[-1].nx) * y_1900.fls[-1].dx * y_1900.fls[-1].map_dx
+
+    plt.figure()
+
+    ax1 = plt.subplot(311)
+    ax1.set_title(gdir.rgi_id)
+    plt.setp(ax1.get_xticklabels(), visible=False)
+    plt.plot(x, y_1850.fls[-1].surface_h, 'k:', label='solution')
+    plt.plot(x, y_1850.fls[-1].bed_h, 'k', label='bed')
+    plt.legend(loc='best')
+
+    ax2 = plt.subplot(312, sharex=ax1)
+    plt.setp(ax2.get_xticklabels(), visible=False)
+    ax2.plot(x, y_1900.fls[-1].surface_h, 'k:', label='solution')
+    ax2.plot(x, y_1900.fls[-1].bed_h, 'k', label='bed')
+
+    ax3 = plt.subplot(313,sharex=ax1)
+    ax3.plot(x, np.zeros(len(x)), 'k--')
 
     growing_climate = LinearMassBalance(past_climate.get_ela(1850),3)
 
     growing_model = FluxBasedModel(fls, mb_model=growing_climate,
                                   glen_a=cfg.A, y0=1850)
     #growing_model.fls[-1].surface_h=growing_model.fls[-1].bed_h
-    #growing_model.run_until(1850)
-    y_start = copy.deepcopy(growing_model)
+    succes = 0
 
+
+
+    y_start = copy.deepcopy(growing_model)
+    y_start.run_until(1950)
 
     res = minimize(objfunc, 0.5,args=(gdir,past_climate.get_ela(1850),), method='COBYLA',
                    tol=1e-04, options={'maxiter':500,'rhobeg':5})
-    print(res)
-    x = np.arange(y_1900.fls[-1].nx) * y_1900.fls[-1].dx * y_1900.fls[-1].map_dx
-    result_model_1850,result_model_1900 = run_model(res.x,gdir,past_climate.get_ela(1850))
+    #print(res)
 
+    result_model_1850,result_model_1900 = run_model(res.x,gdir,past_climate.get_ela(1850))
+    dif = result_model_1900.fls[-1].surface_h-y_1900.fls[-1].surface_h
+    s = np.sum(np.abs(dif))
+    print(gdir.rgi_id,s)
+    if s<25:
+        #print(gdir.rgi_id, i)
+        succes +=1
+        ax1.plot(x, result_model_1850.fls[-1].surface_h, label='optimum')
+        ax2.plot(x, result_model_1900.fls[-1].surface_h, label='optimum')
+        ax3.plot(x, dif)
+
+    '''
     #ax[0].plot(x, y_start.fls[-1].surface_h, label=y_start.yr)
     ax[0].plot(x,result_model_1850.fls[-1].surface_h, label = 'optimum')
     ax[1].plot(x, result_model_1900.fls[-1].surface_h,
                label='optimum')
 
-    ax[0].plot(x, y_1850.fls[-1].surface_h, label=y_1850.yr)
-    ax[0].plot(x, y_1850.fls[-1].bed_h, 'k')
+    ax[0].plot(x, y_1850.fls[-1].surface_h,':', label=y_1850.yr)
+    ax[0].plot(x, y_1850.fls[-1].bed_h, 'k--')
     ax[0].legend(loc='best')
     ax[0].set_title(gdir.rgi_id)
 
-    ax[1].plot(x,y_1900.fls[-1].surface_h,label = y_1900.yr)
-    ax[1].plot(x, y_1900.fls[-1].bed_h, 'k')
+    ax[1].plot(x,y_1900.fls[-1].surface_h,':',label = y_1900.yr)
+    ax[1].plot(x, y_1900.fls[-1].bed_h, 'k--')
     ax[1].legend(loc='best')
-
-
-
-    plt.savefig(os.path.join(cfg.PATHS['working_dir'],'plots','climate_based_surface_h',gdir.rgi_id+'.png'))
-    #plt.show()
+    '''
+    ax1.legend(loc='best')
+    if succes>0:
+        plot_dir = os.path.join(cfg.PATHS['working_dir'],'plots','surface_h')
+        if not os.path.exists(plot_dir):
+            os.makedirs(plot_dir)
+        plt.savefig(os.path.join(plot_dir,gdir.rgi_id+'.png'))
+        plt.show()
     return True
 
 if __name__ == '__main__':

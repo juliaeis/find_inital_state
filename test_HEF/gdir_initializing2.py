@@ -79,7 +79,6 @@ def run_model(param,gdir):
 
 
 def objfunc(param,gdir):
-
     try:
         model, real_model = run_model(param,gdir)
         f = np.sum(abs(real_model.fls[-1].surface_h - y_1900.fls[-1].surface_h))**2 #+ \
@@ -179,14 +178,14 @@ def find_initial_state(gdir):
         except:
             pass
     ax[0].plot(x,y_1900.fls[-1].bed_h ,'k',label='bed')
-    ax[0].plot(x, y_1850.fls[-1].surface_h, 'k', label='solution')
+    ax[0].plot(x, y_1850.fls[-1].surface_h, 'k:', label='solution')
     ax[0].set_ylabel('Altitude (m)')
     ax[0].set_xlabel('Distance along the flowline (m)')
     ax[0].set_title('1850')
     ax[0].legend(loc='best')
 
     ax[1].plot(x, y_1900.fls[-1].bed_h, 'k', label='bed')
-    ax[1].plot(x, y_1900.fls[-1].surface_h, 'k', label='solution')
+    ax[1].plot(x, y_1900.fls[-1].surface_h, 'k:', label='solution')
     ax[1].legend(loc='best')
     ax[1].set_ylabel('Altitude (m)')
     ax[1].set_xlabel('Distance along the flowline (m)')

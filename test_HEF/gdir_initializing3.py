@@ -5,14 +5,16 @@ from oggm.core.massbalance import LinearMassBalance, PastMassBalance, RandomMass
 from oggm.core.flowline import FluxBasedModel
 from functools import partial
 FlowlineModel = partial(FluxBasedModel, inplace=False)
+from bayes_opt import BayesianOptimization
 
 import os
 import salem
 import copy
 import numpy as np
-from scipy.optimize import minimize
+from scipy.optimize import minimize, differential_evolution
 import matplotlib.pyplot as plt
 import multiprocessing as mp
+import time
 
 
 def prepare_for_initializing(gdirs):
@@ -42,33 +44,34 @@ def prepare_for_initializing(gdirs):
     workflow.execute_entity_task(tasks.init_present_time_glacier,gdirs)
 
 
-def run_model(param,gdir,ela):
-    climate = LinearMassBalance(ela_h=ela)
-    climate.temp_bias=param
+def run_model(param,gdir,start_fls):
     fls = gdir.read_pickle('model_flowlines')
     fls1 = copy.deepcopy(fls)
-    fls1[-1].surface_h = y_start.fls[-1].surface_h
-    model = FluxBasedModel(fls1, mb_model=climate, glen_a=cfg.A, y0=0)
-    model.run_until(50)
-
-    fls2 = copy.deepcopy(fls)
-    fls2[-1].surface_h = copy.deepcopy(model.fls[-1].surface_h)
+    fls1[-1].surface_h = copy.deepcopy(start_fls[-1].surface_h)
+    climate= copy.deepcopy(past_climate)
+    climate.temp_bias = param
+    model = FluxBasedModel(fls1, mb_model=climate,
+                           glen_a=cfg.A, y0=1850)
+    model.run_until(1900)
+    fls2= copy.deepcopy(fls)
+    fls2[-1].surface_h=model.fls[-1].surface_h
     real_model = FluxBasedModel(fls2, mb_model=past_climate,
                                 glen_a=cfg.A, y0=1850)
+
     real_model.run_until(1900)
     return [model,real_model]
 
-def objfunc(param,gdir,ela):
+def objfunc(param,gdir,start_fls):
 
     try:
-        model, real_model = run_model(param,gdir,ela)
+        model, real_model = run_model(param,gdir,start_fls)
         f = np.sum(abs(real_model.fls[-1].surface_h - y_1900.fls[-1].surface_h))**2 + \
                 abs(real_model.length_m - y_1900.length_m)**2 + \
                 abs(real_model.area_m2 - y_1900.area_m2) + \
                 abs(real_model.volume_m3-y_1900.volume_m3)
     except:
         f=np.inf
-    #print(param,f)
+    print(param, f)
     return f
 
 def find_initial_state(gdir):
@@ -112,56 +115,41 @@ def find_initial_state(gdir):
 
 
 
-    y_start = copy.deepcopy(growing_model)
-    y_start.run_until(1950)
-
-    res = minimize(objfunc, 0.5,args=(gdir,past_climate.get_ela(1850),), method='COBYLA',
-                   tol=1e-04, options={'maxiter':500,'rhobeg':5})
+    #y_start = copy.deepcopy(growing_model)
+    #y_start.run_until(1950)
+    '''
+    res = minimize(objfunc, [0.5,1900],args=(gdir,y_1900.fls,), method='COBYLA',
+                   tol=1e-04, options={'maxiter':500,'rhobeg':2})
     #print(res)
+    '''
+    res= differential_evolution (objfunc,bounds=[(-5,5)],args=(gdir,y_1900.fls),popsize=50)
 
-    result_model_1850,result_model_1900 = run_model(res.x,gdir,past_climate.get_ela(1850))
+    result_model_1850,result_model_1900 = run_model(res.x,gdir,y_1900.fls)
+
     dif = result_model_1900.fls[-1].surface_h-y_1900.fls[-1].surface_h
     s = np.sum(np.abs(dif))
-    print(gdir.rgi_id,s)
-    if s<25:
-        #print(gdir.rgi_id, i)
-        succes +=1
-        ax1.plot(x, result_model_1850.fls[-1].surface_h, label='optimum')
-        ax2.plot(x, result_model_1900.fls[-1].surface_h, label='optimum')
-        ax3.plot(x, dif)
 
-    '''
-    #ax[0].plot(x, y_start.fls[-1].surface_h, label=y_start.yr)
-    ax[0].plot(x,result_model_1850.fls[-1].surface_h, label = 'optimum')
-    ax[1].plot(x, result_model_1900.fls[-1].surface_h,
-               label='optimum')
+    ax1.plot(x, result_model_1850.fls[-1].surface_h, label='optimum 1')
+    ax2.plot(x, result_model_1900.fls[-1].surface_h)
+    ax3.plot(x, dif)
 
-    ax[0].plot(x, y_1850.fls[-1].surface_h,':', label=y_1850.yr)
-    ax[0].plot(x, y_1850.fls[-1].bed_h, 'k--')
-    ax[0].legend(loc='best')
-    ax[0].set_title(gdir.rgi_id)
-
-    ax[1].plot(x,y_1900.fls[-1].surface_h,':',label = y_1900.yr)
-    ax[1].plot(x, y_1900.fls[-1].bed_h, 'k--')
-    ax[1].legend(loc='best')
-    '''
     ax1.legend(loc='best')
-    if succes>0:
-        plot_dir = os.path.join(cfg.PATHS['working_dir'],'plots','surface_h')
-        if not os.path.exists(plot_dir):
-            os.makedirs(plot_dir)
-        plt.savefig(os.path.join(plot_dir,gdir.rgi_id+'.png'))
-        plt.show()
-    return True
+
+    plot_dir = os.path.join(cfg.PATHS['working_dir'],'plots','differential_evolution_popsize_30')
+    if not os.path.exists(plot_dir):
+        os.makedirs(plot_dir)
+    plt.savefig(os.path.join(plot_dir,gdir.rgi_id+'.png'))
+    plt.show()
+    #return True
 
 if __name__ == '__main__':
-
+    start_time = time.time()
     cfg.initialize()
 
     cfg.PATHS['dem_file'] = get_demo_file('srtm_oetztal.tif')
     cfg.PATHS['climate_file'] = get_demo_file('HISTALP_oetztal.nc')
-    cfg.PATHS['working_dir'] = '/home/juliaeis/PycharmProjects/find_inital_state/test_HEF'
-
+    #cfg.PATHS['working_dir'] = '/home/juliaeis/PycharmProjects/find_inital_state/test_HEF'
+    cfg.PATHS['working_dir'] = os.environ.get("S_WORKDIR")
     cfg.PARAMS['border'] = 80
     cfg.PARAMS['prcp_scaling_factor']
     cfg.PARAMS['run_mb_calibration'] = True
@@ -173,10 +161,13 @@ if __name__ == '__main__':
     gdirs = workflow.init_glacier_regions(salem.read_shapefile(rgi))
     workflow.execute_entity_task(tasks.glacier_masks, gdirs)
 
-    #prepare_for_initializing(gdirs)
-    pool = mp.Pool(processes=4)
+
+    prepare_for_initializing(gdirs)
+    pool = mp.Pool()
     pool.map(find_initial_state,gdirs)
-
-
-
-
+    '''
+    for gdir in gdirs:
+        if gdir.rgi_id == "RGI50-11.00719_d01":
+            find_initial_state(gdir)
+    '''
+    print(time.time()-start_time)

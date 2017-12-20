@@ -38,7 +38,7 @@ gdirs = workflow.init_glacier_regions(rgi_shp)
 
 workflow.execute_entity_task(tasks.glacier_masks, gdirs)
 gdir_hef = [gd for gd in gdirs if (gd.rgi_id == 'RGI50-11.00897')][0]
-'''
+
 list_talks = [
          tasks.compute_centerlines,
          tasks.compute_downstream_line,
@@ -52,7 +52,7 @@ list_talks = [
 
 for task in list_talks:
     workflow.execute_entity_task(task, gdirs)
-'''
+
 workflow.climate_tasks(gdirs)
 workflow.execute_entity_task(tasks.prepare_for_inversion, gdirs)
 from oggm.core.inversion import mass_conservation_inversion
@@ -76,20 +76,18 @@ today_model = ConstantMassBalance(gdir_hef, y0=1985)
 
 commit_model = FluxBasedModel(fls, mb_model=today_model, glen_a=cfg.A)
 pickle.dump(gdir_hef,open('gdir_hef.pkl','wb'))
+pickle.dump(commit_model.fls,open('hef_y0.pkl','wb'))
 plt.figure(0)
 #graphics.plot_modeloutput_section(gdir_hef, model=commit_model)
-graphics.plot_inversion(gdir_hef)
-plt.savefig(os.path.join(cfg.PATHS['working_dir '], 'rdn_lengths.png'), dpi=150)
 print(commit_model.length_m)
 
 commit_model.run_until(100)
-
+pickle.dump(commit_model.fls,open('hef_y1.pkl','wb'))
 x=np.arange(model.fls[-1].nx) * model.fls[-1].dx * model.fls[-1].map_dx
 plt.figure(1)
-
 plt.plot(x,model.fls[-1].bed_h,'k')
 plt.plot(x,surface_before,color='teal', label='y0')
-plt.plot(x,commit_model.fls[-1].surface_h,color='tomato',label='y50')
+plt.plot(x,commit_model.fls[-1].surface_h,color='tomato',label='y1')
 plt.legend(loc='best')
 plt.xlabel('Distance along the flowline (m)')
 plt.ylabel('Altitude (m)')

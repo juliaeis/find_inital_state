@@ -69,7 +69,6 @@ def run_model(param,gdir):
                                     y0=1850)
         model = copy.deepcopy(real_model)
         real_model.run_until(1900)
-
         return [model, real_model]
 
     except:
@@ -79,7 +78,7 @@ def run_model(param,gdir):
 
 
 def objfunc(param,gdir):
-
+    
     try:
         model, real_model = run_model(param,gdir)
         f = np.sum(abs(real_model.fls[-1].surface_h - y_1900.fls[-1].surface_h))**2 #+ \
@@ -88,7 +87,6 @@ def objfunc(param,gdir):
                 #abs(real_model.volume_m3-y_1900.volume_m3)
     except:
         f=np.inf
-    print(f)
     return f
 
 def con1(surface_h,gdir):
@@ -135,10 +133,11 @@ def con5(surface_h, gdir):
 
 def parallel(rhobeg,x0,cons,gdir):
     res = minimize(objfunc, x0, args= (gdir,),method='COBYLA', tol=1e-04, constraints=cons,
-                   options={'maxiter': 5, 'rhobeg': rhobeg})
+                   options={'maxiter': 5000, 'rhobeg': rhobeg})
 
-    #if res.success:
-    return res.x
+    print(gdir.rgi_id,rhobeg,res)
+    if res.success:
+        return res.x
 
 
 def find_initial_state(gdir):
@@ -168,7 +167,7 @@ def find_initial_state(gdir):
             {'type': 'ineq', 'fun': con5,'args': (gdir,)}
             )
 
-    results = [parallel(x, x0, cons,gdir) for x in range(100, 200, 50)]
+    results = [parallel(x, x0, cons,gdir) for x in range(75, 225, 25)]
     #output = [p.get() for p in results]
     output=results
     for index,shape in enumerate(output):
@@ -191,8 +190,11 @@ def find_initial_state(gdir):
     ax[1].set_ylabel('Altitude (m)')
     ax[1].set_xlabel('Distance along the flowline (m)')
     ax[1].set_title('1900')
-    #plt.savefig(os.path.join(cfg.PATHS['working_dir'],'plots','surface_h',gdir.rgi_id+'.png'))
-    plt.show()
+    plot_dir = os.path.join(cfg.PATHS['working_dir'],'plots')
+    if not os.path.isdir(plot_dir):
+        os.makedirs(plot_dir)
+    plt.savefig(os.path.join(plot_dir,gdir.rgi_id+'.png'))
+    #plt.show()
     print(gdir.rgi_id, 'finished')
 
 
@@ -202,22 +204,23 @@ if __name__ == '__main__':
 
     cfg.PATHS['dem_file'] = get_demo_file('srtm_oetztal.tif')
     cfg.PATHS['climate_file'] = get_demo_file('HISTALP_oetztal.nc')
-    cfg.PATHS['working_dir'] = '/home/juliaeis/PycharmProjects/find_inital_state/test_HEF'
-
+    #cfg.PATHS['working_dir'] = '/home/juliaeis/PycharmProjects/find_inital_state/test_HEF'
+    cfg.PATHS['working_dir'] = os.environ.get("S_WORKDIR")
     cfg.PARAMS['border'] = 80
     cfg.PARAMS['prcp_scaling_factor']
     cfg.PARAMS['run_mb_calibration'] = True
     cfg.PARAMS['optimize_inversion_params'] = True
-
+    cfg.PARAMS['use_multiprocessing'] = True
     plt.rcParams['figure.figsize'] = (8, 8)  # Default plot size
 
     rgi = get_demo_file('rgi_oetztal.shp')
     gdirs = workflow.init_glacier_regions(salem.read_shapefile(rgi))
     workflow.execute_entity_task(tasks.glacier_masks, gdirs)
 
-    #prepare_for_initializing(gdirs)
+    prepare_for_initializing(gdirs)
     pool = mp.Pool()
-    pool.map(find_initial_state,gdirs[:2])
-
+    pool.map(find_initial_state,gdirs)
+    pool.close()
+    pool.join()
 
 

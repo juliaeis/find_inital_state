@@ -161,8 +161,8 @@ if __name__ == '__main__':
     cfg.initialize()
     cfg.PATHS['dem_file'] = get_demo_file('srtm_oetztal.tif')
     cfg.PATHS['climate_file'] = get_demo_file('HISTALP_oetztal.nc')
-    cfg.PATHS['working_dir'] = '/home/juliaeis/PycharmProjects/find_inital_state/test_HEF'
-    #cfg.PATHS['working_dir'] = os.environ.get("S_WORKDIR")
+    #cfg.PATHS['working_dir'] = '/home/juliaeis/PycharmProjects/find_inital_state/test_HEF'
+    cfg.PATHS['working_dir'] = os.environ.get("S_WORKDIR")
     cfg.PARAMS['border'] = 80
     cfg.PARAMS['prcp_scaling_factor']
     cfg.PARAMS['run_mb_calibration'] = True

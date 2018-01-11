@@ -82,7 +82,7 @@ def objfunc(param,gdir,start_fls,i):
                 #abs(real_model.volume_m3-y_1900.volume_m3)**2
 
     except:
-        f=np.inf
+        f=1e10
     print(param, f)
     return f
 
@@ -104,26 +104,25 @@ def find_initial_state(gdir):
     y_1900 = copy.deepcopy(commit_model)
     x = np.arange(y_1900.fls[-1].nx) * y_1900.fls[-1].dx * y_1900.fls[-1].map_dx
 
-    plt.figure()
-
-    ax1 = plt.subplot(411)
+    #plt.figure()
+    fig,ax1 =plt.subplots()
+    ax2 = fig.add_axes([0.59,0.66,0.3,0.2])
     ax1.set_title(gdir.rgi_id)
-    plt.setp(ax1.get_xticklabels(), visible=False)
-    plt.plot(x, y_1850.fls[-1].surface_h, 'k:', label='solution')
-    plt.plot(x, y_1850.fls[-1].bed_h, 'k', label='bed')
-    plt.legend(loc='best')
+    #plt.setp(ax1.get_xticklabels(), visible=False)
+    #plt.plot(x, y_1850.fls[-1].surface_h, 'k:', label='solution')
+    #plt.plot(x, y_1850.fls[-1].bed_h, 'k', label='bed')
+    #plt.legend(loc='best')
 
-    ax2 = plt.subplot(412, sharex=ax1)
-    plt.setp(ax2.get_xticklabels(), visible=False)
-    ax2.plot(x, y_1900.fls[-1].surface_h, 'k:', label='solution')
-    ax2.plot(x, y_1900.fls[-1].bed_h, 'k', label='bed')
+    #ax2 = plt.subplot(412, sharex=ax1)
+    #plt.setp(ax2.get_xticklabels(), visible=False)
 
+    '''
     ax3 = plt.subplot(413,sharex=ax1)
     ax3.plot(x, np.zeros(len(x)), 'k--')
 
     ax4 = plt.subplot(414, sharex=ax1)
     ax4.plot(x, np.zeros(len(x)), 'k--')
-
+    '''
     growing_climate = LinearMassBalance(past_climate.get_ela(1850),3)
 
     growing_model = FluxBasedModel(fls, mb_model=growing_climate,
@@ -131,29 +130,43 @@ def find_initial_state(gdir):
     y_start = copy.deepcopy(growing_model)
 
 
-    for i in [0,0.2,0.4,0.6,0.8,1,5,10,15,20,25,30,35,40,45,50,100]:
+    for i in [0,0.2,0.4,0.6,0.8,1,5,10,15,20,25,30,35,40,45,50]:
+
         res = minimize(objfunc, [0],args=(gdir,y_1900.fls,i,), method='COBYLA',
-                       tol=1e-04, options={'maxiter':500,'rhobeg':2})
+                       tol=1e-04, options={'maxiter':1,'rhobeg':2})
+        try:
+            result_model_1850,result_model_1900 = run_model(res.x,gdir,y_1900.fls,i)
 
-        result_model_1850,result_model_1900 = run_model(res.x,gdir,y_1900.fls,i)
+            f = np.sum(abs(result_model_1900.fls[-1].surface_h-y_1900.fls[-1].surface_h) ** 2) + \
+                np.sum(abs(y_1900.fls[-1].widths - result_model_1900.fls[-1].widths) ** 2)
 
-        f = np.sum(abs(result_model_1900.fls[-1].surface_h-y_1900.fls[-1].surface_h) ** 2) + \
-            np.sum(abs(y_1900.fls[-1].widths - result_model_1900.fls[-1].widths) ** 2)
+            dif_s = result_model_1900.fls[-1].surface_h-y_1900.fls[-1].surface_h
+            dif_w = result_model_1900.fls[-1].widths-y_1900.fls[-1].widths
+            if np.max(dif_s)<40 and np.max(dif_w)<15:
+                ax1.plot(x, result_model_1850.fls[-1].surface_h,alpha=0.5)
+                ax2.plot(x, result_model_1900.fls[-1].surface_h,alpha=0.5)
+        except:
+            pass
 
-        dif_s = result_model_1900.fls[-1].surface_h-y_1900.fls[-1].surface_h
-        dif_w = result_model_1900.fls[-1].widths-y_1900.fls[-1].widths
+    ax1.plot(x, y_1850.fls[-1].surface_h, 'k:', label='surface elevation (not known)')
+    ax1.plot(x, y_1850.fls[-1].bed_h, 'k', label='bed topography')
+    ax2.plot(x, y_1900.fls[-1].surface_h, 'k', label='surface elevation (observed)')
+    ax2.plot(x, y_1900.fls[-1].bed_h, 'k', label='bed')
+    ax1.annotate('t = 1850', xy=(0.1, 0.95), xycoords='axes fraction',fontsize=13)
+    ax2.annotate('t = 1900', xy=(0.1, 0.9), xycoords='axes fraction',
+                 fontsize=9)
+    ax1.set_xlabel('Distance along the Flowline (m)')
+    ax1.set_ylabel('Altitude (m)')
 
-        ax1.plot(x, result_model_1850.fls[-1].surface_h, label=str(f))
-        ax2.plot(x, result_model_1900.fls[-1].surface_h)
-        ax3.plot(x, dif_s)
-        ax4.plot(x, dif_w)
-
-
-    plot_dir = os.path.join(cfg.PATHS['working_dir'],'plots','sliding_2000')
+    ax2.set_xlabel('Distance along the Flowline (m)')
+    ax2.set_ylabel('Altitude (m)')
+    ax1.legend(loc=4)
+    ax2.legend(loc='best')
+    plot_dir = os.path.join(cfg.PATHS['working_dir'],'plots')
     if not os.path.exists(plot_dir):
         os.makedirs(plot_dir)
     plt.savefig(os.path.join(plot_dir,gdir.rgi_id+'.png'))
-    plt.show()
+    #plt.show()
     #return True
 
 if __name__ == '__main__':
@@ -181,7 +194,7 @@ if __name__ == '__main__':
 
     '''
     for gdir in gdirs:
-        if gdir.rgi_id == "RGI50-11.00897":
+        if gdir.rgi_id == "RGI50-11.00687":
             find_initial_state(gdir)
     '''
 

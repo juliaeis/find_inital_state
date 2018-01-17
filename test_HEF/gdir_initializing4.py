@@ -5,6 +5,7 @@ from oggm.core.massbalance import LinearMassBalance, PastMassBalance, RandomMass
 from oggm.core.flowline import FluxBasedModel
 from functools import partial
 FlowlineModel = partial(FluxBasedModel, inplace=False)
+from bayes_opt import BayesianOptimization
 
 import os
 import salem
@@ -43,7 +44,7 @@ def prepare_for_initializing(gdirs):
     workflow.execute_entity_task(tasks.init_present_time_glacier,gdirs)
 
 
-def run_model(param,gdir,start_fls,i):
+def run_model(param,gdir,start_fls,t):
     fls = gdir.read_pickle('model_flowlines')
 
     fls1 = copy.deepcopy(fls)
@@ -52,8 +53,8 @@ def run_model(param,gdir,start_fls,i):
     #climate= RandomMassBalance(gdir)
     climate.temp_bias = param
     model = FluxBasedModel(fls1, mb_model=climate,
-                           glen_a=i*cfg.A, y0=1850)
-    model.run_until(1950)
+                           glen_a=cfg.A, y0=1850)
+    model.run_until(1850+t)
     fls2= copy.deepcopy(fls)
     fls2[-1].surface_h=model.fls[-1].surface_h
     real_model = FluxBasedModel(fls2, mb_model=past_climate,
@@ -70,10 +71,10 @@ def run_model(param,gdir,start_fls,i):
 
     return [model,real_model]
 
-def objfunc(param,gdir,start_fls,i):
+def objfunc(param,gdir,start_fls,t):
 
     try:
-        model, real_model = run_model(param,gdir,start_fls,i)
+        model, real_model = run_model(param,gdir,start_fls,t)
         f = np.sum(abs(real_model.fls[-1].surface_h - y_1900.fls[-1].surface_h)**2) + \
             np.sum(abs(real_model.fls[-1].widths - y_1900.fls[-1].widths) ** 2)
                 #abs(real_model.length_m - y_1900.length_m)**2 + \
@@ -101,23 +102,21 @@ def find_initial_state(gdir):
                                   glen_a=cfg.A, y0=1850)
     commit_model.run_until_equilibrium()
     y_1850 = copy.deepcopy(commit_model)
-
     commit_model = FluxBasedModel(commit_model.fls,mb_model=past_climate,glen_a=cfg.A,y0=1850)
-    commit_model.run_until(2000)
 
+    commit_model.run_until(2000)
     y_1900 = copy.deepcopy(commit_model)
     x = np.arange(y_1900.fls[-1].nx) * y_1900.fls[-1].dx * y_1900.fls[-1].map_dx
 
     #plt.figure()
-
-    fig,ax1 =plt.subplots(figsize=(20,10))
+    fig,ax1 =plt.subplots()
     ax2 = fig.add_axes([0.55,0.66,0.3,0.2])
     ax1.set_title(gdir.rgi_id)
-    box= ax1.get_position()
-    ax1.set_position([box.x0,box.y0,box.width*0.95,box.height])
+
+    box = ax1.get_position()
+    ax1.set_position([box.x0, box.y0, box.width * 0.95, box.height])
 
     # Put a legend to the right of the current axis
-
 
 
     #plt.setp(ax1.get_xticklabels(), visible=False)
@@ -136,26 +135,29 @@ def find_initial_state(gdir):
     ax4.plot(x, np.zeros(len(x)), 'k--')
     '''
 
-    growing_model = FluxBasedModel(fls, mb_model=growing_climate,
+
+    growing_model = FluxBasedModel(fls, mb_model=past_climate,
                                   glen_a=cfg.A, y0=1850)
+
     y_start = copy.deepcopy(growing_model)
 
-    #for i in [0,0.5,1,5,10,20,30,40,50]:
-    for i in [0,0.5,1,5,10,12.5,15,17.5,20,22.5,25,27.5,30,35,40]:
 
-        res = minimize(objfunc, [0],args=(gdir,y_1900.fls,i,), method='COBYLA',
+    #for i in [0,0.2,0.4,0.6,0.8,1,5,10,15,20,25,30,35,40,45,50]:
+    for t in [10,20,30,40,50,60,70,80,90,100,110,120,130,140,150]:
+        res = minimize(objfunc, [0],args=(gdir,y_1900.fls,t,), method='COBYLA',
                        tol=1e-04, options={'maxiter':500,'rhobeg':2})
         try:
-            result_model_1850,result_model_1900 = run_model(res.x,gdir,y_1900.fls,i)
+            result_model_1850,result_model_1900 = run_model(res.x,gdir,y_1900.fls,t)
 
             f = np.sum(abs(result_model_1900.fls[-1].surface_h-y_1900.fls[-1].surface_h) ** 2) + \
                 np.sum(abs(y_1900.fls[-1].widths - result_model_1900.fls[-1].widths) ** 2)
 
             dif_s = result_model_1900.fls[-1].surface_h-y_1900.fls[-1].surface_h
             dif_w = result_model_1900.fls[-1].widths-y_1900.fls[-1].widths
-            if np.max(dif_s)<50:
-                ax1.plot(x, result_model_1850.fls[-1].surface_h,alpha=0.5,label='A * '+str(i))
-                ax2.plot(x, result_model_1900.fls[-1].surface_h,alpha=0.5)
+            #if np.max(dif_s)<40 and np.max(dif_w)<15:
+            ax1.plot(x, result_model_1850.fls[-1].surface_h,alpha=0.5, label=str(1850+t))
+            ax2.plot(x, result_model_1900.fls[-1].surface_h,alpha=0.5)
+
         except:
             pass
 
@@ -163,6 +165,7 @@ def find_initial_state(gdir):
     ax1.plot(x, y_1850.fls[-1].bed_h, 'k')#, label='bed topography')
     ax2.plot(x, y_1900.fls[-1].surface_h, 'k', label='surface elevation (observed)')
     ax2.plot(x, y_1900.fls[-1].bed_h, 'k', label='bed')
+    #ax3.plot(x,np.zeros(len(x)),'k:')
     ax1.annotate('t = 1850', xy=(0.1, 0.95), xycoords='axes fraction',fontsize=13)
     ax2.annotate('t = 2000', xy=(0.1, 0.9), xycoords='axes fraction',
                  fontsize=9)
@@ -171,18 +174,17 @@ def find_initial_state(gdir):
 
     ax2.set_xlabel('Distance along the Flowline (m)')
     ax2.set_ylabel('Altitude (m)')
-    ax1.legend(loc='center left',bbox_to_anchor=(1,0.5))
-    #ax1.legend(loc=4)
+
+    ax1.legend(loc='center left', bbox_to_anchor=(1, 0.5))
     ax2.legend(loc='best')
-    plot_dir = os.path.join(cfg.PATHS['working_dir'],'plots','run_2000')
+    plot_dir = os.path.join(cfg.PATHS['working_dir'],'plots')
     if not os.path.exists(plot_dir):
         os.makedirs(plot_dir)
     plt.savefig(os.path.join(plot_dir,gdir.rgi_id+'.png'))
-    #plt.show()
+    plt.show()
     #return True
 
 if __name__ == '__main__':
-    global plot_dir
     start_time = time.time()
     cfg.initialize()
     cfg.PATHS['dem_file'] = get_demo_file('srtm_oetztal.tif')
@@ -193,24 +195,20 @@ if __name__ == '__main__':
     cfg.PARAMS['prcp_scaling_factor']
     cfg.PARAMS['run_mb_calibration'] = True
     cfg.PARAMS['optimize_inversion_params'] = True
-    plot_dir = os.path.join(cfg.PATHS['working_dir'],'plots','sliding_2000')
-    if not os.path.exists(plot_dir):
-        os.makedirs(plot_dir)
+
     plt.rcParams['figure.figsize'] = (8, 8)  # Default plot size
 
     rgi = get_demo_file('rgi_oetztal.shp')
     gdirs = workflow.init_glacier_regions(salem.read_shapefile(rgi))
     workflow.execute_entity_task(tasks.glacier_masks, gdirs)
-
-
-    prepare_for_initializing(gdirs)
+    #prepare_for_initializing(gdirs)
+    '''
     pool = mp.Pool()
     pool.map(find_initial_state,gdirs)
-
     '''
     for gdir in gdirs:
-        if gdir.rgi_id == "RGI50-11.00687":
+        if gdir.rgi_id == "RGI50-11.00897":
             find_initial_state(gdir)
-    '''
+
 
     print(time.time()-start_time)

@@ -15,7 +15,7 @@ from scipy.optimize import minimize, differential_evolution
 import matplotlib.pyplot as plt
 import multiprocessing as mp
 import time
-
+from scipy.ndimage.filters import median_filter,gaussian_filter
 
 if __name__ == '__main__':
     start_time = time.time()
@@ -58,32 +58,50 @@ if __name__ == '__main__':
     # ELA at 3000m a.s.l., gradient 4 mm m-1
     mb_model = LinearMassBalance(3000, grad=4)
     commit_model = FlowlineModel(init_flowline, mb_model=mb_model, y0=0)
-    commit_model.run_until_equilibrium()
+    commit_model.run_until(300)
 
     constant_climate=LinearMassBalance(3000, grad=3)
-    commit_model = FlowlineModel(commit_model.fls, mb_model=constant_climate, y0=300)
+    commit_model = FlowlineModel(commit_model.fls, mb_model=constant_climate, y0=200)
     y_start = copy.deepcopy(commit_model)
-    commit_model.reset_y0(10)
-    print(y_start.yr)
+
     x = np.arange(y_start.fls[-1].nx) * y_start.fls[-1].dx * y_start.fls[-1].map_dx
+    commit_model.run_until(297)
+    y_270 = copy.deepcopy(commit_model)
+    commit_model.run_until(300)
+    y_300 =  copy.deepcopy(commit_model)
+    commit_model.reset_y0(300)
+    commit_model.run_until_back(297)
+    commit_model.reset_y0(297)
+    y_270_back = copy.deepcopy(commit_model)
+    '''
+    signs = np.sign(np.gradient(y_270_back.fls[-1].section))
 
-    commit_model.run_until_back(9.96919)
-    commit_model.reset_y0(9.96919)
-    y_250 = copy.deepcopy(commit_model)
-    print(y_250.yr)
-    commit_model.run_until(10)
+    #if len(np.where(np.abs(np.diff(signs))>1)[0]>0):
+        start_filter = np.where(np.abs(np.diff(signs))>1)[0][0]
+        end_filter = np.where(np.abs(np.diff(signs))>1)[0][-1]
+        a = y_270_back.fls[-1].section[:int(start_filter-10)]
+        b = median_filter(y_270_back.fls[-1].section[int(start_filter - 10):int(end_filter+10)],size=11,mode='nearest')
+        c = y_270_back.fls[-1].section[int(end_filter+10):]
+        filt_section=(np.concatenate((a,b,c)))
+    '''
 
-    print(commit_model.yr)
+    #commit_model.run_until(10)
+
+    #print(commit_model.yr)
 
     plt.figure()
 
     #ax1 = plt.subplot(211)
     #ax1.set_title(gdir.rgi_id)
     #plt.setp(ax1.get_xticklabels(), visible=False)
-    plt.plot(x, y_250.fls[-1].surface_h,
-             label='t=' + str(300 - (10 - y_250.yr)))
-    plt.plot(x, y_start.fls[-1].surface_h, label='t=300')
-    plt.plot(x,commit_model.fls[-1].bed_h,'k')
+    plt.plot( y_270_back.fls[-1].surface_h,
+             label='t=270_backwards')
+    #y_270_back.fls[-1].section = filt_section
+
+    #plt.plot( gaussian_filter(y_270.fls[-1].surface_h,sigma=3, mode='nearest'))
+    plt.plot( y_270.fls[-1].surface_h, label='t=270 solution')
+    plt.plot(y_300.fls[-1].surface_h, label='t=300 solution')
+    plt.plot(commit_model.fls[-1].bed_h,'k')
 
     plt.legend(loc='best')
     '''

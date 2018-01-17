@@ -143,7 +143,7 @@ def find_initial_state(gdir):
 
 
     #for i in [0,0.2,0.4,0.6,0.8,1,5,10,15,20,25,30,35,40,45,50]:
-    for t in [20,30,40,50,60,70,80,90,100,110,120,130,140,150]:
+    for t in [10,20,30,40,50,60,70,80,90,100,110,120,130,140,150]:
         res = minimize(objfunc, [0],args=(gdir,y_1900.fls,t,), method='COBYLA',
                        tol=1e-04, options={'maxiter':500,'rhobeg':2})
         try:

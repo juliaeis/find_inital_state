@@ -53,13 +53,13 @@ def run_model(param,gdir,start_fls,i):
     climate.temp_bias = param
     model = FluxBasedModel(fls1, mb_model=climate,
                            glen_a=i*cfg.A, y0=1850)
-    model.run_until(1900)
+    model.run_until(1950)
     fls2= copy.deepcopy(fls)
     fls2[-1].surface_h=model.fls[-1].surface_h
     real_model = FluxBasedModel(fls2, mb_model=past_climate,
                                 glen_a=cfg.A, y0=1850)
 
-    real_model.run_until(1900)
+    real_model.run_until(2000)
 
     dif = real_model.fls[-1].surface_h - y_1900.fls[-1].surface_h
     s = np.sum(np.abs(dif))
@@ -99,14 +99,16 @@ def find_initial_state(gdir):
     commit_model = FluxBasedModel(fls, mb_model=past_climate,
                                   glen_a=cfg.A, y0=1850)
     y_1850 = copy.deepcopy(commit_model)
-    commit_model.run_until(1900)
+    commit_model.run_until(2000)
     y_1900 = copy.deepcopy(commit_model)
     x = np.arange(y_1900.fls[-1].nx) * y_1900.fls[-1].dx * y_1900.fls[-1].map_dx
 
     #plt.figure()
-    fig,ax1 =plt.subplots()
-    ax2 = fig.add_axes([0.59,0.66,0.3,0.2])
+    fig,ax1 =plt.subplots(figsize=(20,10))
+    ax2 = fig.add_axes([0.55,0.66,0.3,0.2])
     ax1.set_title(gdir.rgi_id)
+    box= ax1.get_position()
+    ax1.set_position([box.x0,box.y0,box.width*0.95,box.height])
     #plt.setp(ax1.get_xticklabels(), visible=False)
     #plt.plot(x, y_1850.fls[-1].surface_h, 'k:', label='solution')
     #plt.plot(x, y_1850.fls[-1].bed_h, 'k', label='bed')
@@ -128,11 +130,11 @@ def find_initial_state(gdir):
                                   glen_a=cfg.A, y0=1850)
     y_start = copy.deepcopy(growing_model)
 
-    for i in [0,0.5,1,5,10,20,30,40,50]:
-    #for i in [0,0.2,0.4,0.6,0.8,1,5,10,15,20,25,30,35,40,45,50]:
+    #for i in [0,0.5,1,5,10,20,30,40,50]:
+    for i in [0,0.5,1,5,10,12.5,15,17.5,20,22.5,25,27.5,30,35,40]:
 
         res = minimize(objfunc, [0],args=(gdir,y_1900.fls,i,), method='COBYLA',
-                       tol=1e-04, options={'maxiter':1,'rhobeg':2})
+                       tol=1e-04, options={'maxiter':500,'rhobeg':2})
         try:
             result_model_1850,result_model_1900 = run_model(res.x,gdir,y_1900.fls,i)
 
@@ -141,27 +143,28 @@ def find_initial_state(gdir):
 
             dif_s = result_model_1900.fls[-1].surface_h-y_1900.fls[-1].surface_h
             dif_w = result_model_1900.fls[-1].widths-y_1900.fls[-1].widths
-            if np.max(dif_s)<40 and np.max(dif_w)<15:
-                ax1.plot(x, result_model_1850.fls[-1].surface_h,alpha=0.5)
+            if np.max(dif_s)<50:
+                ax1.plot(x, result_model_1850.fls[-1].surface_h,alpha=0.5,label='A * '+str(i))
                 ax2.plot(x, result_model_1900.fls[-1].surface_h,alpha=0.5)
         except:
             pass
 
-    ax1.plot(x, y_1850.fls[-1].surface_h, 'k:', label='surface elevation (not known)')
-    ax1.plot(x, y_1850.fls[-1].bed_h, 'k', label='bed topography')
+    ax1.plot(x, y_1850.fls[-1].surface_h, 'k:')#, label='surface elevation (not known)')
+    ax1.plot(x, y_1850.fls[-1].bed_h, 'k')#, label='bed topography')
     ax2.plot(x, y_1900.fls[-1].surface_h, 'k', label='surface elevation (observed)')
     ax2.plot(x, y_1900.fls[-1].bed_h, 'k', label='bed')
     ax1.annotate('t = 1850', xy=(0.1, 0.95), xycoords='axes fraction',fontsize=13)
-    ax2.annotate('t = 1900', xy=(0.1, 0.9), xycoords='axes fraction',
+    ax2.annotate('t = 2000', xy=(0.1, 0.9), xycoords='axes fraction',
                  fontsize=9)
     ax1.set_xlabel('Distance along the Flowline (m)')
     ax1.set_ylabel('Altitude (m)')
 
     ax2.set_xlabel('Distance along the Flowline (m)')
     ax2.set_ylabel('Altitude (m)')
-    ax1.legend(loc=4)
+    ax1.legend(loc='center left',bbox_to_anchor=(1,0.5))
+    #ax1.legend(loc=4)
     ax2.legend(loc='best')
-    plot_dir = os.path.join(cfg.PATHS['working_dir'],'plots')
+    plot_dir = os.path.join(cfg.PATHS['working_dir'],'plots','run_2000')
     if not os.path.exists(plot_dir):
         os.makedirs(plot_dir)
     plt.savefig(os.path.join(plot_dir,gdir.rgi_id+'.png'),dpi=(300))

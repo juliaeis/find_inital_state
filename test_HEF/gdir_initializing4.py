@@ -44,7 +44,7 @@ def prepare_for_initializing(gdirs):
     workflow.execute_entity_task(tasks.init_present_time_glacier,gdirs)
 
 
-def run_model(param,gdir,start_fls,i):
+def run_model(param,gdir,start_fls,t):
     fls = gdir.read_pickle('model_flowlines')
 
     fls1 = copy.deepcopy(fls)
@@ -53,8 +53,8 @@ def run_model(param,gdir,start_fls,i):
     #climate= RandomMassBalance(gdir)
     climate.temp_bias = param
     model = FluxBasedModel(fls1, mb_model=climate,
-                           glen_a=i*cfg.A, y0=1850)
-    model.run_until(1950)
+                           glen_a=cfg.A, y0=1850)
+    model.run_until(1850+t)
     fls2= copy.deepcopy(fls)
     fls2[-1].surface_h=model.fls[-1].surface_h
     real_model = FluxBasedModel(fls2, mb_model=past_climate,
@@ -71,10 +71,10 @@ def run_model(param,gdir,start_fls,i):
 
     return [model,real_model]
 
-def objfunc(param,gdir,start_fls,i):
+def objfunc(param,gdir,start_fls,t):
 
     try:
-        model, real_model = run_model(param,gdir,start_fls,i)
+        model, real_model = run_model(param,gdir,start_fls,t)
         f = np.sum(abs(real_model.fls[-1].surface_h - y_1900.fls[-1].surface_h)**2) + \
             np.sum(abs(real_model.fls[-1].widths - y_1900.fls[-1].widths) ** 2)
                 #abs(real_model.length_m - y_1900.length_m)**2 + \
@@ -143,11 +143,11 @@ def find_initial_state(gdir):
 
 
     #for i in [0,0.2,0.4,0.6,0.8,1,5,10,15,20,25,30,35,40,45,50]:
-    for i in [1]:
-        res = minimize(objfunc, [0],args=(gdir,y_1900.fls,i,), method='COBYLA',
+    for t in [20,30,40,50,60,70,80,90,100,110,120,130,140,150]:
+        res = minimize(objfunc, [0],args=(gdir,y_1900.fls,t,), method='COBYLA',
                        tol=1e-04, options={'maxiter':500,'rhobeg':2})
         try:
-            result_model_1850,result_model_1900 = run_model(res.x,gdir,y_1900.fls,i)
+            result_model_1850,result_model_1900 = run_model(res.x,gdir,y_1900.fls,t)
 
             f = np.sum(abs(result_model_1900.fls[-1].surface_h-y_1900.fls[-1].surface_h) ** 2) + \
                 np.sum(abs(y_1900.fls[-1].widths - result_model_1900.fls[-1].widths) ** 2)
@@ -155,7 +155,7 @@ def find_initial_state(gdir):
             dif_s = result_model_1900.fls[-1].surface_h-y_1900.fls[-1].surface_h
             dif_w = result_model_1900.fls[-1].widths-y_1900.fls[-1].widths
             #if np.max(dif_s)<40 and np.max(dif_w)<15:
-            ax1.plot(x, result_model_1850.fls[-1].surface_h,alpha=0.5, label='A * '+str(i))
+            ax1.plot(x, result_model_1850.fls[-1].surface_h,alpha=0.5, label=str(1850+t))
             ax2.plot(x, result_model_1900.fls[-1].surface_h,alpha=0.5)
 
         except:
@@ -189,8 +189,8 @@ if __name__ == '__main__':
     cfg.initialize()
     cfg.PATHS['dem_file'] = get_demo_file('srtm_oetztal.tif')
     cfg.PATHS['climate_file'] = get_demo_file('HISTALP_oetztal.nc')
-    cfg.PATHS['working_dir'] = '/home/juliaeis/PycharmProjects/find_inital_state/test_HEF'
-    #cfg.PATHS['working_dir'] = os.environ.get("S_WORKDIR")
+    #cfg.PATHS['working_dir'] = '/home/juliaeis/PycharmProjects/find_inital_state/test_HEF'
+    cfg.PATHS['working_dir'] = os.environ.get("S_WORKDIR")
     cfg.PARAMS['border'] = 80
     cfg.PARAMS['prcp_scaling_factor']
     cfg.PARAMS['run_mb_calibration'] = True
@@ -201,7 +201,7 @@ if __name__ == '__main__':
     rgi = get_demo_file('rgi_oetztal.shp')
     gdirs = workflow.init_glacier_regions(salem.read_shapefile(rgi))
     workflow.execute_entity_task(tasks.glacier_masks, gdirs)
-    prepare_for_initializing(gdirs)
+    #prepare_for_initializing(gdirs)
     '''
     pool = mp.Pool()
     pool.map(find_initial_state,gdirs)

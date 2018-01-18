@@ -206,7 +206,7 @@ if __name__ == '__main__':
     cfg.PARAMS['prcp_scaling_factor']
     cfg.PARAMS['run_mb_calibration'] = True
     cfg.PARAMS['optimize_inversion_params'] = True
-
+    cfg.PARAMS['use_intersects']=False
     plt.rcParams['figure.figsize'] = (8, 8)  # Default plot size
 
     rgi = get_demo_file('rgi_oetztal.shp')

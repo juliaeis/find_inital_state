@@ -13,6 +13,7 @@ import copy
 import numpy as np
 from scipy.optimize import minimize, differential_evolution
 import matplotlib.pyplot as plt
+from matplotlib import pylab
 import multiprocessing as mp
 import time
 
@@ -44,7 +45,7 @@ def prepare_for_initializing(gdirs):
     workflow.execute_entity_task(tasks.init_present_time_glacier,gdirs)
 
 
-def run_model(param,gdir,start_fls,t):
+def run_model(param,gdir,start_fls,t,i):
     fls = gdir.read_pickle('model_flowlines')
 
     fls1 = copy.deepcopy(fls)
@@ -53,7 +54,7 @@ def run_model(param,gdir,start_fls,t):
     #climate= RandomMassBalance(gdir)
     climate.temp_bias = param
     model = FluxBasedModel(fls1, mb_model=climate,
-                           glen_a=cfg.A, y0=1850)
+                           glen_a=i*cfg.A, y0=1850)
     model.run_until(1850+t)
     fls2= copy.deepcopy(fls)
     fls2[-1].surface_h=model.fls[-1].surface_h
@@ -71,10 +72,10 @@ def run_model(param,gdir,start_fls,t):
 
     return [model,real_model]
 
-def objfunc(param,gdir,start_fls,t):
+def objfunc(param,gdir,start_fls,t,i):
 
     try:
-        model, real_model = run_model(param,gdir,start_fls,t)
+        model, real_model = run_model(param,gdir,start_fls,t,i)
         f = np.sum(abs(real_model.fls[-1].surface_h - y_1900.fls[-1].surface_h)**2) + \
             np.sum(abs(real_model.fls[-1].widths - y_1900.fls[-1].widths) ** 2)
                 #abs(real_model.length_m - y_1900.length_m)**2 + \
@@ -116,6 +117,8 @@ def find_initial_state(gdir):
     box = ax1.get_position()
     ax1.set_position([box.x0, box.y0, box.width * 0.95, box.height])
 
+    colors= pylab.cm.Blues(.5)
+
     # Put a legend to the right of the current axis
 
 
@@ -141,25 +144,33 @@ def find_initial_state(gdir):
 
     y_start = copy.deepcopy(growing_model)
 
+    colors = [pylab.cm.Blues(np.linspace(0.3,1,2)),pylab.cm.Reds(np.linspace(0.3,1,2)),pylab.cm.Greens(np.linspace(0.3,1,2))]
 
     #for i in [0,0.2,0.4,0.6,0.8,1,5,10,15,20,25,30,35,40,45,50]:
-    for t in [10,20,30,40,50,60,70,80,90,100,110,120,130,140,150]:
-        res = minimize(objfunc, [0],args=(gdir,y_1900.fls,t,), method='COBYLA',
-                       tol=1e-04, options={'maxiter':500,'rhobeg':2})
-        try:
-            result_model_1850,result_model_1900 = run_model(res.x,gdir,y_1900.fls,t)
+    j = 0
 
-            f = np.sum(abs(result_model_1900.fls[-1].surface_h-y_1900.fls[-1].surface_h) ** 2) + \
-                np.sum(abs(y_1900.fls[-1].widths - result_model_1900.fls[-1].widths) ** 2)
+    for i in [0.5,1,5]:
+        k = 0
+        col = colors[j]
+        j=j+1
+        for t in [20,40,60,80,100,120,140,150]:
+            res = minimize(objfunc, [0],args=(gdir,y_1900.fls,t,i,), method='COBYLA',
+                           tol=1e-04, options={'maxiter':1,'rhobeg':2})
+            try:
+                result_model_1850,result_model_1900 = run_model(res.x,gdir,y_1900.fls,t,i)
 
-            dif_s = result_model_1900.fls[-1].surface_h-y_1900.fls[-1].surface_h
-            dif_w = result_model_1900.fls[-1].widths-y_1900.fls[-1].widths
-            #if np.max(dif_s)<40 and np.max(dif_w)<15:
-            ax1.plot(x, result_model_1850.fls[-1].surface_h,alpha=0.5, label=str(1850+t))
-            ax2.plot(x, result_model_1900.fls[-1].surface_h,alpha=0.5)
+                f = np.sum(abs(result_model_1900.fls[-1].surface_h-y_1900.fls[-1].surface_h) ** 2) + \
+                    np.sum(abs(y_1900.fls[-1].widths - result_model_1900.fls[-1].widths) ** 2)
 
-        except:
-            pass
+                dif_s = result_model_1900.fls[-1].surface_h-y_1900.fls[-1].surface_h
+                dif_w = result_model_1900.fls[-1].widths-y_1900.fls[-1].widths
+                #if np.max(dif_s)<40 and np.max(dif_w)<15:
+                ax1.plot(x, result_model_1850.fls[-1].surface_h,alpha=0.8,color=col[k], label=str(1850+t))
+                ax2.plot(x, result_model_1900.fls[-1].surface_h,alpha=0.8,color=col[k])
+
+            except:
+                pass
+            k=k+1
 
     ax1.plot(x, y_1850.fls[-1].surface_h, 'k:')#, label='surface elevation (not known)')
     ax1.plot(x, y_1850.fls[-1].bed_h, 'k')#, label='bed topography')
@@ -181,7 +192,7 @@ def find_initial_state(gdir):
     if not os.path.exists(plot_dir):
         os.makedirs(plot_dir)
     plt.savefig(os.path.join(plot_dir,gdir.rgi_id+'.png'))
-    plt.show()
+    #plt.show()
     #return True
 
 if __name__ == '__main__':
@@ -201,14 +212,14 @@ if __name__ == '__main__':
     rgi = get_demo_file('rgi_oetztal.shp')
     gdirs = workflow.init_glacier_regions(salem.read_shapefile(rgi))
     workflow.execute_entity_task(tasks.glacier_masks, gdirs)
-    #prepare_for_initializing(gdirs)
-    '''
+    prepare_for_initializing(gdirs)
+
     pool = mp.Pool()
     pool.map(find_initial_state,gdirs)
     '''
     for gdir in gdirs:
         if gdir.rgi_id == "RGI50-11.00897":
             find_initial_state(gdir)
-
+    '''
 
     print(time.time()-start_time)

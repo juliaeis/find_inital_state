@@ -5,7 +5,7 @@ from oggm.core.massbalance import LinearMassBalance, PastMassBalance, RandomMass
 from oggm.core.flowline import FluxBasedModel
 from functools import partial
 FlowlineModel = partial(FluxBasedModel, inplace=False)
-from bayes_opt import BayesianOptimization
+
 
 import os
 import salem

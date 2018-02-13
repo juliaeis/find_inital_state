@@ -143,11 +143,11 @@ def find_initial_state(gdir):
         ax1.plot(x, y_1880.fls[i].bed_h, 'k')
         ax2.plot(x, y_2000.fls[i].bed_h, 'k')
 
-    plot_dir = os.path.join(cfg.PATHS['working_dir'], 'plots')
-    plt.savefig(os.path.join(plot_dir, gdir.rgi_id + '.png'))
+        plot_dir = os.path.join(cfg.PATHS['working_dir'], 'plots')
+        plt.savefig(os.path.join(plot_dir, gdir.rgi_id +'_fls'+str(i)+ '.png'))
     #plt.show()
 
-    results.to_csv(os.path.join(plot_dir,'results.csv'))
+    results.to_csv(os.path.join(plot_dir,str(gdir.rgi_id)+'.csv'))
     '''
     # prepare plots
     #plt.figure(figsize=(20, 10))

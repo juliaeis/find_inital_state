@@ -149,7 +149,7 @@ def find_initial_state(gdir):
         ax1.plot(x, y_1880.fls[i].bed_h, 'k')
         ax2.plot(x, y_2000.fls[i].bed_h, 'k')
 
-        plot_dir = os.path.join(cfg.PATHS['working_dir'], 'plots')
+        plot_dir = os.path.join(cfg.PATHS['working_dir'], 'plots','Ben_idea_parallel')
 
         if not os.path.exists(plot_dir):
             os.makedirs(plot_dir)
@@ -176,15 +176,14 @@ if __name__ == '__main__':
     rgi = get_demo_file('rgi_oetztal.shp')
     gdirs = workflow.init_glacier_regions(salem.read_shapefile(rgi))
     workflow.execute_entity_task(tasks.glacier_masks, gdirs)
-    '''
-    prepare_for_initializing(gdirs)
 
+    prepare_for_initializing(gdirs)
+    '''
     pool = mp.Pool()
     pool.map(find_initial_state,gdirs)
     '''
     for gdir in gdirs:
-        if gdir.rgi_id == "RGI50-11.00897":
-            find_initial_state(gdir)
+        find_initial_state(gdir)
 
 
     print(time.time()-start_time)

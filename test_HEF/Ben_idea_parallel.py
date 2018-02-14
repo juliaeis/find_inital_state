@@ -143,8 +143,9 @@ def find_initial_state(gdir):
 
         x = np.arange(y_2000.fls[i].nx) * y_2000.fls[i].dx * y_2000.fls[i].map_dx
         for j in range(len(result_list)):
-            ax1.plot(x, result_list[j][0].fls[i].surface_h, alpha=0.8, )
-            ax2.plot(x, result_list[j][1].fls[i].surface_h, alpha=0.8, )
+            if result_list[j][0] != None:
+                ax1.plot(x, result_list[j][0].fls[i].surface_h, alpha=0.8, )
+                ax2.plot(x, result_list[j][1].fls[i].surface_h, alpha=0.8, )
 
         ax1.plot(x,y_1880.fls[i].surface_h,'k:')
         ax2.plot(x, y_2000.fls[i].surface_h, 'k')

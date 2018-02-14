@@ -87,15 +87,18 @@ def plotxy(ax,x):
 
 
 def run_parallel(i,gdir,y_2000):
-    random_climate2 = RandomMassBalance(gdir, y0=1875, halfsize=14)
-    res = minimize(objfunc, [0],
-                   args=(gdir, y_2000.fls,random_climate2),
-                   method='COBYLA',
-                   tol=1e-04, options={'maxiter': 100, 'rhobeg': 1})
-    # try:
-    result_model_1880, result_model_2000 = run_model(res.x, gdir,
-                                                     y_2000.fls,random_climate2)
-    return result_model_1880,result_model_2000
+    try:
+        random_climate2 = RandomMassBalance(gdir, y0=1875, halfsize=14)
+        res = minimize(objfunc, [0],
+                       args=(gdir, y_2000.fls,random_climate2),
+                       method='COBYLA',
+                       tol=1e-04, options={'maxiter': 100, 'rhobeg': 1})
+        # try:
+        result_model_1880, result_model_2000 = run_model(res.x, gdir,
+                                                         y_2000.fls,random_climate2)
+        return result_model_1880,result_model_2000
+    except:
+        return None, None
 
 def find_initial_state(gdir):
 
@@ -127,7 +130,7 @@ def find_initial_state(gdir):
 
     pool = mp.Pool()
     result_list=pool.map(partial(run_parallel,gdir=gdir,y_2000=y_2000),range(40))
-
+    result_list = [x for x in result_list if x != [None, None]]
     # create plots
     for i in range(len(result_list[0][0].fls)):
         plt.figure(i,figsize=(20,10))

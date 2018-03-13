@@ -1,4 +1,4 @@
-from oggm import cfg, workflow, tasks
+from oggm import cfg, workflow, tasks,graphics
 from oggm.utils import get_demo_file
 from oggm.core.inversion import mass_conservation_inversion
 from oggm.core.massbalance import LinearMassBalance, PastMassBalance, RandomMassBalance
@@ -17,6 +17,7 @@ from matplotlib import pylab
 import multiprocessing as mp
 import time
 import pandas as pd
+import xarray as xr
 
 
 def prepare_for_initializing(gdirs):
@@ -110,7 +111,7 @@ def find_initial_state(gdir):
 
     results  = pd.DataFrame(columns=['1880','2000','length_1880'])
 
-    for i in range(30):
+    for i in range(4):
         random_climate2 = RandomMassBalance(gdir, y0=1875, halfsize=14)
         res = minimize(objfunc, [0], args=(gdir, y_2000.fls),
                        method='COBYLA',
@@ -227,34 +228,67 @@ def find_initial_state(gdir):
     plt.savefig(os.path.join(plot_dir, gdir.rgi_id + '.png'))
     plt.show()
     '''
-
+def example_plot_temp_ts():
+    d = xr.open_dataset(gdir.get_filepath('climate_monthly'))
+    temp = d.temp.resample(freq='12MS', dim='time', how=np.mean).to_series()
+    temp = temp[temp.index.year>1850]
+    del temp.index.name
+    print(temp)
+    ax = temp.plot(figsize=(8, 4), label='Annual temperature')
+    #temp.rolling(31, center=True, min_periods=15).mean().plot(label='31-yr avg')
+    plt.legend(loc='best')
+    plt.title('HISTALP annual temperature, Hintereisferner')
+    plt.ylabel(r'degC')
+    plt.xlabel(r'year')
+    #plt.xlim((1850.0, 2000.0))
+    plt.tight_layout()
+    plt.show()
 
 if __name__ == '__main__':
     start_time = time.time()
     cfg.initialize()
     cfg.PATHS['dem_file'] = get_demo_file('srtm_oetztal.tif')
     cfg.PATHS['climate_file'] = get_demo_file('HISTALP_oetztal.nc')
-    #cfg.PATHS['working_dir'] = '/home/juliaeis/PycharmProjects/find_inital_state/test_HEF'
-    cfg.PATHS['working_dir'] = os.environ.get("S_WORKDIR")
-    cfg.PARAMS['border'] = 80
+    cfg.PATHS['working_dir'] = '/home/juliaeis/PycharmProjects/find_inital_state/test_HEF'
+    #cfg.PATHS['working_dir'] = os.environ.get("S_WORKDIR")
+    cfg.PARAMS['border'] = 100
     cfg.PARAMS['prcp_scaling_factor']
     cfg.PARAMS['run_mb_calibration'] = True
     cfg.PARAMS['optimize_inversion_params'] = True
     cfg.PARAMS['use_intersects']=False
     plt.rcParams['figure.figsize'] = (8, 8)  # Default plot size
-
+    import geopandas as gpd
     rgi = get_demo_file('rgi_oetztal.shp')
+    #rgi = get_demo_file('HEF_MajDivide.shp')
+    hef = gpd.read_file(rgi)
     gdirs = workflow.init_glacier_regions(salem.read_shapefile(rgi))
     workflow.execute_entity_task(tasks.glacier_masks, gdirs)
-
+    '''
     prepare_for_initializing(gdirs)
 
     pool = mp.Pool()
     pool.map(find_initial_state,gdirs)
-    '''
+'''
     for gdir in gdirs:
         if gdir.rgi_id == "RGI50-11.00897":
-            find_initial_state(gdir)
-    '''
+            #find_initial_state(gdir)
+            #prepare_for_initializing([gdir])
+            fls = gdir.read_pickle('model_flowlines')
+            graphics.plot_centerlines(gdir)
+            plt.savefig('/home/juliaeis/Dokumente/Präsentationen/spp_Kickoff_2018/plots/HEF.png')
 
+            fls = gdir.read_pickle('model_flowlines')
+            x = np.arange(fls[-1].nx) * fls[-1].dx * fls[-1].map_dx
+            import seaborn as sns
+            plt.figure(figsize=(7,7))
+            plt.style.use('ggplot')
+            #plt.plot(x, fls[-1].surface_h,label='surface elevation')
+            plt.text(4000,2800,'?',fontsize=20)
+            plt.plot(x, fls[-1].bed_h,'k', label='bed topography')
+            plt.legend(loc='best')
+            plt.xlabel('Distance along the main flowline (m)')
+            plt.ylabel('Elevation (m)')
+            plt.title(gdir.rgi_id+': Hintereisferner')
+
+            plt.show()
     print(time.time()-start_time)

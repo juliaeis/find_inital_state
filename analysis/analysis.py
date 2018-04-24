@@ -1,4 +1,5 @@
-import oggm
+from oggm import cfg,workflow,tasks
+from oggm.utils import get_demo_file
 import pickle
 import os
 import pandas as pd
@@ -8,6 +9,7 @@ import matplotlib.pyplot as plt
 plt.style.use('ggplot')
 import seaborn as sns
 import copy
+import salem
 
 def diff(ar1,ar2):
     return abs(ar1-ar2)
@@ -207,6 +209,8 @@ if __name__ == '__main__':
     if not os.path.exists(plot_dir):
         os.makedirs(plot_dir)
 
+    analysis = pd.DataFrame()
+    analysis2 = pd.DataFrame()
     for file in os.listdir(path):
 
 
@@ -220,20 +224,29 @@ if __name__ == '__main__':
         diff_w_1880 = {}
         diff_w_2000 = {}
 
-
-        if file.endswith('00897_solution.pkl') :
+        '''
+        if file.endswith('_solution.pkl') :
             rgi_id = file.split('_s')[0]
             solution_file = os.path.join(path,file)
             result_file = os.path.join(path,rgi_id+'.pkl')
 
             solution = pickle.load(open(solution_file,'rb'))
             results = pickle.load(open(result_file,'rb'))
+            surface_1880 = pd.DataFrame()
+            for res in results:
+                if res[0] !=None:
+                    surface_1880 = surface_1880.append([res[0].fls[-1].surface_h], ignore_index=True)
+            median = np.array(surface_1880.median(axis=0)-solution[0].fls[-1].bed_h)
+            pixel_diff = np.where(median>0)[0][-1]-np.where(solution[0].fls[-1].surface_h-solution[0].fls[-1].bed_h >0)[0][-1]
+            len_diff = pixel_diff*solution[1].fls[-1].dx *solution[1].fls[-1].map_dx
+            analysis2 = analysis2.append({'RGIId': rgi_id, 'len_diff': int(len_diff)}, ignore_index=True)
 
             for i in range(len(solution[0].fls)):
                 surface_1880 = pd.DataFrame()
                 surface_2000 = pd.DataFrame()
                 widths_1880 = pd.DataFrame()
                 widths_2000 = pd.DataFrame()
+                length_1880 = pd.DataFrame()
                 for res in results:
                     if res[0] != None:
                         # surface
@@ -242,6 +255,7 @@ if __name__ == '__main__':
                         # widths
                         widths_2000 = widths_2000.append([res[1].fls[i].widths], ignore_index=True)
                         widths_1880 = widths_1880.append([res[0].fls[i].widths],ignore_index=True)
+                        length_1880 = length_1880.append([res[0].length_m],ignore_index=True)
 
                 s_1880[i] = copy.deepcopy(surface_1880)
                 s_2000[i] = copy.deepcopy(surface_2000)
@@ -259,15 +273,14 @@ if __name__ == '__main__':
             filtered = surface_2000['objective'] < surface_2000['objective'].median() + surface_2000['objective'].mad()
 
             for i in range(len(s_1880)):
-                '''
+
                 s_1880[i] = s_1880[i][filtered]
                 s_2000[i] = s_2000[i][filtered]
                 w_1880[i] = w_1880[i][filtered]
                 w_2000[i] = w_2000[i][filtered]
-                '''
+
 
                 plot_surface(s_1880[i], s_2000[i], solution,rgi_id,i, os.path.join(plot_dir,'surface'))
-                '''
                 plot_widths(w_1880[i], w_2000[i], solution, rgi_id,i, os.path.join(plot_dir,'widths'))
 
                 # calculate difference for all flowlines
@@ -282,5 +295,23 @@ if __name__ == '__main__':
             plot_difference_histogramm(diff_s_1880, diff_s_2000, diff_w_1880, diff_w_2000, os.path.join(plot_dir,'difference'))
             plot_difference_boxplot(diff_s_1880, diff_s_2000, diff_w_1880, diff_w_2000, os.path.join(plot_dir,'boxplot'))
             plot_difference_length(results,solution, rgi_id, plot_dir)
-            '''
+
             plt.show()
+
+            analysis = analysis.append({'RGIId':rgi_id,'range':int(length_1880.max()-length_1880.min())},ignore_index=True)
+    analysis = analysis.set_index('RGIId')
+    pickle.dump(analysis,open(os.path.join(path,'analysis.txt'),'wb'))
+    '''
+    analysis = pickle.load(open(os.path.join(path,'analysis.txt'),'rb'))
+    #analysis2 = analysis2.set_index('RGIId')
+    #analysis = pd.concat([analysis,analysis2],axis=1)
+    #pickle.dump(analysis, open(os.path.join(path, 'analysis.txt'), 'wb'))
+
+    rgi_file = get_demo_file('rgi_oetztal.shp')
+    # rgi = get_demo_file('HEF_MajDivide.shp')
+    rgi = salem.read_shapefile(rgi_file)
+
+    rgi = rgi.set_index('RGIId')
+    analysis = pd.concat([analysis,rgi['Slope']],axis=1)
+    pd.scatter_matrix(analysis, figsize=(6, 6), diagonal='hist')
+    plt.show()

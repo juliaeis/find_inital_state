@@ -77,8 +77,8 @@ def objfunc(param,gdir,start_fls,t,i):
     try:
         model, real_model = run_model(param,gdir,start_fls,t,i)
         f = np.sum(abs(real_model.fls[-1].surface_h - y_1900.fls[-1].surface_h)**2) + \
-            np.sum(abs(real_model.fls[-1].widths - y_1900.fls[-1].widths) ** 2)
-                #abs(real_model.length_m - y_1900.length_m)**2 + \
+            np.sum(abs(real_model.fls[-1].widths - y_1900.fls[-1].widths) ** 2) +\
+            abs(real_model.length_m - y_1900.length_m)**2
                 #abs(real_model.area_m2 - y_1900.area_m2)**2 + \
                 #abs(real_model.volume_m3-y_1900.volume_m3)**2
 
@@ -109,7 +109,7 @@ def find_initial_state(gdir):
     y_1900 = copy.deepcopy(commit_model)
     x = np.arange(y_1900.fls[-1].nx) * y_1900.fls[-1].dx * y_1900.fls[-1].map_dx
 
-    #plt.figure()
+    plt.figure(figsize=(20,10))
     fig,ax1 =plt.subplots()
     ax2 = fig.add_axes([0.55,0.66,0.3,0.2])
     ax1.set_title(gdir.rgi_id)
@@ -117,7 +117,7 @@ def find_initial_state(gdir):
     box = ax1.get_position()
     ax1.set_position([box.x0, box.y0, box.width * 0.95, box.height])
 
-    colors= pylab.cm.Blues(.5)
+
 
     # Put a legend to the right of the current axis
 
@@ -149,13 +149,13 @@ def find_initial_state(gdir):
     #for i in [0,0.2,0.4,0.6,0.8,1,5,10,15,20,25,30,35,40,45,50]:
     j = 0
 
-    for i in [0.5,1,5]:
+    for i in [1]:
         k = 0
         col = colors[j]
         j=j+1
         for t in [20,40,60,80,100,120,140,150]:
             res = minimize(objfunc, [0],args=(gdir,y_1900.fls,t,i,), method='COBYLA',
-                           tol=1e-04, options={'maxiter':1,'rhobeg':2})
+                           tol=1e-04, options={'maxiter':500,'rhobeg':2})
             try:
                 result_model_1850,result_model_1900 = run_model(res.x,gdir,y_1900.fls,t,i)
 
@@ -165,7 +165,7 @@ def find_initial_state(gdir):
                 dif_s = result_model_1900.fls[-1].surface_h-y_1900.fls[-1].surface_h
                 dif_w = result_model_1900.fls[-1].widths-y_1900.fls[-1].widths
                 #if np.max(dif_s)<40 and np.max(dif_w)<15:
-                ax1.plot(x, result_model_1850.fls[-1].surface_h,alpha=0.8,color=col[k], label=str(1850+t))
+                ax1.plot(x, result_model_1850.fls[-1].surface_h,alpha=0.8,color=col[k], label='t='+str(t))
                 ax2.plot(x, result_model_1900.fls[-1].surface_h,alpha=0.8,color=col[k])
 
             except:
@@ -192,7 +192,7 @@ def find_initial_state(gdir):
     if not os.path.exists(plot_dir):
         os.makedirs(plot_dir)
     plt.savefig(os.path.join(plot_dir,gdir.rgi_id+'.png'))
-    #plt.show()
+    plt.show()
     #return True
 
 if __name__ == '__main__':
@@ -200,8 +200,8 @@ if __name__ == '__main__':
     cfg.initialize()
     cfg.PATHS['dem_file'] = get_demo_file('srtm_oetztal.tif')
     cfg.PATHS['climate_file'] = get_demo_file('HISTALP_oetztal.nc')
-    #cfg.PATHS['working_dir'] = '/home/juliaeis/PycharmProjects/find_inital_state/test_HEF'
-    cfg.PATHS['working_dir'] = os.environ.get("S_WORKDIR")
+    cfg.PATHS['working_dir'] = '/home/juliaeis/PycharmProjects/find_inital_state/test_HEF'
+    #cfg.PATHS['working_dir'] = os.environ.get("S_WORKDIR")
     cfg.PARAMS['border'] = 80
     cfg.PARAMS['prcp_scaling_factor']
     cfg.PARAMS['run_mb_calibration'] = True
@@ -212,6 +212,7 @@ if __name__ == '__main__':
     rgi = get_demo_file('rgi_oetztal.shp')
     gdirs = workflow.init_glacier_regions(salem.read_shapefile(rgi))
     workflow.execute_entity_task(tasks.glacier_masks, gdirs)
+    '''
     prepare_for_initializing(gdirs)
 
     pool = mp.Pool()
@@ -220,6 +221,6 @@ if __name__ == '__main__':
     for gdir in gdirs:
         if gdir.rgi_id == "RGI50-11.00897":
             find_initial_state(gdir)
-    '''
+
 
     print(time.time()-start_time)

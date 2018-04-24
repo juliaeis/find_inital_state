@@ -11,9 +11,8 @@ import os
 import salem
 import copy
 import numpy as np
-from scipy.optimize import minimize, differential_evolution
+from scipy.optimize import minimize
 import matplotlib.pyplot as plt
-from matplotlib import pylab
 import multiprocessing as mp
 import time
 import pandas as pd

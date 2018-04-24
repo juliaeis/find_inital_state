@@ -21,7 +21,7 @@ from oggm.core.massbalance import PastMassBalance, RandomMassBalance
 from oggm.core.flowline import FluxBasedModel
 FlowlineModel = partial(FluxBasedModel, inplace=False)
 
-from final_version.plots import plot_experiment,plot_surface, make_result_panda
+#from final_version.plots import plot_experiment,plot_surface, make_result_panda
 
 
 def objfunc(param, gdir, y_2000, random_climate2):
@@ -118,6 +118,8 @@ def run_optimization(gdirs):
         pool = mp.Pool()
         result_list = pool.map(partial(run_parallel, gdir=gdir, y_t=y_t),
                                range(4))
+        pool.close()
+        pool.join()
         gdir.write_pickle(result_list,'reconstruction_output')
 
 
@@ -193,6 +195,8 @@ def synthetic_experiments(gdirs):
 
     pool = mp.Pool()
     pool.map(_run_parallel_experiment,gdirs)
+    pool.close()
+    pool.join()
 
 
 if __name__ == '__main__':
@@ -217,6 +221,7 @@ if __name__ == '__main__':
 
     rgi = get_demo_file('rgi_oetztal.shp')
     gdirs = workflow.init_glacier_regions(salem.read_shapefile(rgi))
+    gdirs = gdirs[:10]
     workflow.execute_entity_task(tasks.glacier_masks, gdirs)
     prepare_for_initializing(gdirs)
     synthetic_experiments(gdirs)

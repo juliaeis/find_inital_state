@@ -71,8 +71,8 @@ def objfunc(param,gdir,fls,random_climate2):
         model, real_model = run_model(param,gdir,fls,random_climate2)
 
         f = np.sum(abs(real_model.fls[-1].surface_h - y_2000.fls[-1].surface_h)**2) + \
-            np.sum(abs(real_model.fls[-1].widths - y_2000.fls[-1].widths) ** 2) + \
-            abs(real_model.length_m - y_2000.length_m)**2
+            np.sum(abs(real_model.fls[-1].widths - y_2000.fls[-1].widths) ** 2)
+            #abs(real_model.length_m - y_2000.length_m)**2
                 #abs(real_model.area_m2 - y_1900.area_m2)**2 + \
                 #abs(real_model.volume_m3-y_1900.volume_m3)**2
 
@@ -128,7 +128,9 @@ def find_initial_state(gdir):
 
 
     pool = mp.Pool()
-    result_list=pool.map(partial(run_parallel,gdir=gdir,y_2000=y_2000),range(40))
+    result_list=pool.map(partial(run_parallel,gdir=gdir,y_2000=y_2000),range(300))
+    pool.close()
+    pool.join()
     result_list = [x for x in result_list if x != [None, None]]
     # create plots
     for i in range(len(result_list[0][0].fls)):
@@ -152,14 +154,15 @@ def find_initial_state(gdir):
         ax1.plot(x, y_1880.fls[i].bed_h, 'k')
         ax2.plot(x, y_2000.fls[i].bed_h, 'k')
 
-        plot_dir = os.path.join(cfg.PATHS['working_dir'], 'plots','Ben_idea_parallel')
+        plot_dir = os.path.join(cfg.PATHS['working_dir'], 'plots','Ben_idea_parallel_without_length')
 
         if not os.path.exists(plot_dir):
             os.makedirs(plot_dir)
 
         plt.savefig(os.path.join(plot_dir, gdir.rgi_id +'_fls'+str(i)+ '.png'))
     pickle.dump(result_list,open(os.path.join(plot_dir,gdir.rgi_id+'.pkl'),'wb'))
-
+    solution = [y_1880,y_2000]
+    pickle.dump(solution,open(os.path.join(plot_dir,gdir.rgi_id+'_solution.pkl'),'wb'))
 
 
 if __name__ == '__main__':
@@ -185,7 +188,7 @@ if __name__ == '__main__':
     pool = mp.Pool()
     pool.map(find_initial_state,gdirs)
     '''
-    for gdir in gdirs:
+    for gdir in gdirs[10:]:
         find_initial_state(gdir)
 
 

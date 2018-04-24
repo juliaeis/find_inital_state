@@ -111,6 +111,8 @@ def run_model(param,gdir,y_t,random_climate2):
 
 
 def run_optimization(gdirs):
+    ''' run optimization
+    '''
 
     for gdir in gdirs:
         experiments = gdir.read_pickle('synthetic_experiment')

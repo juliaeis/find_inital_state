@@ -15,7 +15,7 @@ import pandas as pd
 import geopandas as gpd
 import numpy as np
 import matplotlib.pyplot as plt
-plt.style.use('ggplot')
+#plt.style.use('ggplot')
 import seaborn as sns
 import copy
 
@@ -91,19 +91,19 @@ def plot_experiment (solution,rgi_id,fls_num, plot_dir):
     ax1.set_title(rgi_id + ': Hintereisferner',fontsize=25)
     box = ax1.get_position()
     ax1.set_position([box.x0, box.y0, box.width * 0.95, box.height])
-    ax1.annotate('t = 1880', xy=(0.1, 0.95), xycoords='axes fraction',
-                 fontsize=18)
-    ax2.annotate('t = today', xy=(0.1, 0.9), xycoords='axes fraction',
-                 fontsize=13)
+    ax1.annotate(r'$t = t_0 = 1865$', xy=(0.1, 0.95), xycoords='axes fraction',
+                 fontsize=20)
+    ax2.annotate(r'$t = 2000$', xy=(0.1, 0.87), xycoords='axes fraction',
+                 fontsize=20)
 
-    ax1.plot(x, solution[0].fls[fls_num].surface_h, 'k:', linewidth=3, label='solution')
-    ax1.plot(x, solution[0].fls[fls_num].bed_h, 'k',linewidth=3, label='bed')
+    ax1.plot(x, solution[0].fls[fls_num].surface_h, 'k:', linewidth=3, label=r'$x_t$')
+    ax1.plot(x, solution[0].fls[fls_num].bed_h, 'k',linewidth=3, label=r'$b_t$ ')
     #ax1.plot(x, solution[0].fls[fls_num].surface_h, 'k:',linewidth=2)
 
     ax1.plot(x, solution[0].fls[fls_num].bed_h, 'k',linewidth=2)
     ax2.plot(x, solution[1].fls[fls_num].bed_h, 'k',linewidth=2)
     ax2.plot(x, solution[1].fls[fls_num].surface_h, 'k:')
-    ax1.legend(loc='center left', bbox_to_anchor=(1, 0.5),fontsize=15)
+    ax1.legend(loc='center left', bbox_to_anchor=(1, 0.5),fontsize=25)
     ax1.set_xlabel('Distance along the Flowline (m)',fontsize=25)
     ax1.set_ylabel('Altitude (m)',fontsize=25)
 
@@ -271,7 +271,7 @@ if __name__ == '__main__':
                 s_2000[i] = copy.deepcopy(surface_2000)
                 w_1880[i] = copy.deepcopy(widths_1880)
                 w_2000[i] = copy.deepcopy(widths_2000)
-            print(volume)
+
 
             # calculate objective
             sum_s = surface_2000.apply(diff,axis=1,args=[solution[1].fls[-1].surface_h])**2

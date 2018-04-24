@@ -21,7 +21,7 @@ from oggm.core.massbalance import PastMassBalance, RandomMassBalance
 from oggm.core.flowline import FluxBasedModel
 FlowlineModel = partial(FluxBasedModel, inplace=False)
 
-from final_version.plots import plot_experiment,plot_surface, make_result_panda
+#from final_version.plots import plot_experiment,plot_surface,make_result_panda
 
 
 def objfunc(param, gdir, y_2000, random_climate2):

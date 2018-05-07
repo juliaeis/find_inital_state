@@ -157,7 +157,7 @@ def plot_problem(fls,rgi_id,fls_num, plot_dir):
 def example_plot_temp_ts():
     d = xr.open_dataset(gdir.get_filepath('climate_monthly'))
     temp = d.temp.resample(freq='12MS', dim='time', how=np.mean).to_series()
-    temp = temp[temp.index.year>=1880]
+    temp = temp[temp.index.year>=1865]
     fig, ax1 = plt.subplots(figsize=(15, 10))
     del temp.index.name
     ax1.plot(temp,color='steelblue',linewidth=3, label='Annual temp')

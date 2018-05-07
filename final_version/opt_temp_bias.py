@@ -17,11 +17,11 @@ import salem
 from oggm import cfg, workflow, tasks, utils
 from oggm.utils import get_demo_file
 from oggm.core.inversion import mass_conservation_inversion
-from oggm.core.massbalance import PastMassBalance, RandomMassBalance
+from oggm.core.massbalance import PastMassBalance, RandomMassBalance, LinearMassBalance
 from oggm.core.flowline import FluxBasedModel
 FlowlineModel = partial(FluxBasedModel, inplace=False)
 
-#from final_version.plots import plot_experiment,plot_surface, make_result_panda
+from final_version.plots import plot_experiment,plot_surface, plot_climate,plot_length
 
 
 def objfunc(param, gdir, y_2000, random_climate2):
@@ -34,12 +34,14 @@ def objfunc(param, gdir, y_2000, random_climate2):
     :return: objective value
     '''
     try:
+
         random_model, past_model = run_model(param, gdir, y_2000, random_climate2)
         f = np.sum(abs(past_model.fls[-1].surface_h -y_2000[-1].surface_h)**2) + \
             np.sum(abs(past_model.fls[-1].widths - y_2000[-1].widths) ** 2)
             #abs(real_model.length_m - y_2000.length_m)**2
             #abs(real_model.area_m2 - y_1900.area_m2)**2 + \
             #abs(real_model.volume_m3-y_1900.volume_m3)**2
+
     except:
         f=1e10
     print(param, f)
@@ -89,6 +91,7 @@ def run_model(param,gdir,y_t,random_climate2):
     # run estimated glacier with random climate 2 until equilibrium
     # (glacier candidate)
 
+
     # estimated flowline = observed flowline
     estimated_fls = copy.deepcopy(y_t)
     climate = copy.deepcopy(random_climate2)
@@ -96,11 +99,11 @@ def run_model(param,gdir,y_t,random_climate2):
     climate.temp_bias = param
     random_model = FluxBasedModel(estimated_fls, mb_model=climate, y0=1865)
     random_model.run_until_equilibrium()
-
     # run glacier candidate with past climate until 2000
     candidate_fls= copy.deepcopy(y_t)
     for i in range(len(y_t)):
         candidate_fls[i].surface_h = random_model.fls[i].surface_h
+
 
     past_climate = PastMassBalance(gdir)
     past_model = FluxBasedModel(candidate_fls, mb_model=past_climate,
@@ -110,19 +113,41 @@ def run_model(param,gdir,y_t,random_climate2):
     return [random_model,past_model]
 
 
-def run_optimization(gdirs):
+def con(param):
+    return -param
+
+
+def run_optimization(gdirs,synthetic_exp=True):
     ''' run optimization
     '''
 
     for gdir in gdirs:
-        experiments = gdir.read_pickle('synthetic_experiment')
-        y_t = experiments['y_t'].fls
+        if synthetic_exp:
+            experiments = gdir.read_pickle('synthetic_experiment')
+            y_t = experiments['y_t'].fls
+        else:
+            fls = gdir.read_pickle('model_flowlines')
+
+            climate_est = RandomMassBalance(gdir,y0=1865, halfsize=14)
+            climate_est.temp_bias=-0.75
+            est_model = FluxBasedModel(copy.deepcopy(fls), mb_model=climate_est, y0=1850)
+            est_model.run_until_equilibrium()
+
+            plt.figure()
+            plt.plot(est_model.fls[-1].surface_h,label='est model')
+            plt.plot(fls[-1].surface_h,label='fls')
+            plt.plot(fls[-1].bed_h,'k', label='bed')
+            plt.legend(loc='best')
+            plt.show()
+            y_t = copy.deepcopy(est_model.fls)
+
         pool = mp.Pool()
         result_list = pool.map(partial(run_parallel, gdir=gdir, y_t=y_t),
                                range(4))
         pool.close()
         pool.join()
         gdir.write_pickle(result_list,'reconstruction_output')
+
 
 
 def run_parallel(i,gdir,y_t):
@@ -132,9 +157,11 @@ def run_parallel(i,gdir,y_t):
         # ensure that not the same climate as in the experiments is used
         if experiment['climate']==random_climate2:
             random_climate2 = RandomMassBalance(gdir, y0=1865, halfsize=14)
+
         res = minimize(objfunc, [0],
                        args=(gdir, y_t,random_climate2),
                        method='COBYLA',
+                       #constraints={'type':'ineq','fun':con},
                        tol=1e-04, options={'maxiter': 100, 'rhobeg': 1})
 
         result_model_t0, result_model_t = run_model(res.x, gdir,
@@ -151,6 +178,7 @@ def _run_parallel_experiment(gdir):
     try:
         # construct searched glacier
         random_climate1 = RandomMassBalance(gdir, y0=1865, halfsize=14)
+        random_climate1.temp_bias= -0.75
         commit_model = FluxBasedModel(fls, mb_model=random_climate1,
                                       glen_a=cfg.A, y0=1850)
         commit_model.run_until_equilibrium()
@@ -206,8 +234,9 @@ if __name__ == '__main__':
     cfg.PATHS['dem_file'] = get_demo_file('srtm_oetztal.tif')
     cfg.PATHS['climate_file'] = get_demo_file('HISTALP_oetztal.nc')
     #cfg.PATHS['working_dir'] = '/home/juliaeis/Dokumente/OGGM/work_dir/find_initial_state'
-    #cfg.PATHS['plot_dir'] = os.path.join(cfg.PATHS['working_dir'],'plots')
     cfg.PATHS['working_dir'] = os.environ.get("S_WORKDIR")
+    cfg.PATHS['plot_dir'] = os.path.join(cfg.PATHS['working_dir'],'plots')
+
     cfg.PARAMS['border'] = 80
     cfg.PARAMS['prcp_scaling_factor']
     cfg.PARAMS['run_mb_calibration'] = True
@@ -222,13 +251,19 @@ if __name__ == '__main__':
     plt.rcParams['figure.figsize'] = (8, 8)  # Default plot size
 
     rgi = get_demo_file('rgi_oetztal.shp')
-    gdirs = workflow.init_glacier_regions(salem.read_shapefile(rgi))
-    gdirs = gdirs[:10]
+    rgidf = salem.read_shapefile(rgi)
+    #gdirs = workflow.init_glacier_regions(rgidf[rgidf.RGIId== 'RGI50-11.00897'])
+    gdirs = workflow.init_glacier_regions(rgidf)
+
     workflow.execute_entity_task(tasks.glacier_masks, gdirs)
     prepare_for_initializing(gdirs)
+    gdirs = gdirs
     synthetic_experiments(gdirs)
-    run_optimization(gdirs)
+    run_optimization(gdirs,synthetic_exp=True)
 
     #for gdir in gdirs:
-    #    plot_experiment(gdir,cfg.PATHS['plot_dir'])
-    #    plot_surface(gdir,cfg.PATHS['plot_dir'],-1)
+        #if gdir.rgi_id.endswith('0897'):
+        #plot_experiment(gdir,cfg.PATHS['plot_dir'])
+        #plot_surface(gdir,cfg.PATHS['plot_dir'],-1)
+        #plot_climate(gdir,cfg.PATHS['plot_dir'])
+        #plot_length(gdir,cfg.PATHS['plot_dir'])

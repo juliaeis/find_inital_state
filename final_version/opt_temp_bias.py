@@ -119,7 +119,7 @@ def run_optimization(gdirs):
         y_t = experiments['y_t'].fls
         pool = mp.Pool()
         result_list = pool.map(partial(run_parallel, gdir=gdir, y_t=y_t),
-                               range(4))
+                               range(300))
         pool.close()
         pool.join()
         gdir.write_pickle(result_list,'reconstruction_output')
@@ -223,9 +223,9 @@ if __name__ == '__main__':
 
     rgi = get_demo_file('rgi_oetztal.shp')
     gdirs = workflow.init_glacier_regions(salem.read_shapefile(rgi))
-    gdirs = gdirs[:10]
     workflow.execute_entity_task(tasks.glacier_masks, gdirs)
     prepare_for_initializing(gdirs)
+    gdirs=gdirs[10:]
     synthetic_experiments(gdirs)
     run_optimization(gdirs)
 

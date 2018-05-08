@@ -12,6 +12,7 @@ from oggm.utils import get_demo_file
 from oggm.core.inversion import mass_conservation_inversion
 from oggm.core.massbalance import PastMassBalance, RandomMassBalance
 from oggm.core.flowline import FluxBasedModel
+from oggm.graphics import plot_catchment_width, plot_centerlines
 FlowlineModel = partial(FluxBasedModel, inplace=False)
 
 
@@ -39,13 +40,13 @@ def make_result_panda(gdir,i):
 
 
 def plot_climate(gdir, plot_dir) :
-    plot_dir = os.path.join(plot_dir, 'surface')
+    #plot_dir = os.path.join(plot_dir, 'surface')
     if not os.path.exists(plot_dir):
         os.makedirs(plot_dir)
 
     d = xr.open_dataset(gdir.get_filepath('climate_monthly'))
     temp = d.temp.resample(freq='12MS', dim='time', how=np.mean).to_series()
-    temp = temp[temp.index.year >= 1865]
+    temp = temp[temp.index.year >= 1850]
 
     fig, ax1 = plt.subplots(figsize=(15, 10))
     del temp.index.name
@@ -59,7 +60,7 @@ def plot_climate(gdir, plot_dir) :
 
     ax1.tick_params(axis='both', which='major', labelsize=20)
     plt.tight_layout()
-    plt.savefig(os.path.join(plot_dir, 'Histalps.png'), dpi=300)
+    plt.savefig(os.path.join(plot_dir, 'Histalps.pdf'), dpi=300)
     plt.show()
 
     return
@@ -112,7 +113,7 @@ def plot_experiment (gdir, plot_dir):
 
 def plot_surface(gdir, plot_dir,i):
 
-    plot_dir = os.path.join(plot_dir, 'surface')
+    #plot_dir = os.path.join(plot_dir, 'surface')
     if not os.path.exists(plot_dir):
         os.makedirs(plot_dir)
     reconstruction = gdir.read_pickle('reconstruction_output')
@@ -169,7 +170,6 @@ def plot_surface(gdir, plot_dir,i):
 
     ax2.plot(x, experiment['y_t'].fls[i].bed_h, 'k',linewidth=2)
     ax2.plot(x, experiment['y_t'].fls[i].surface_h, 'k:',linewidth=2)
-    ax2.plot(x, fls[i].surface_h,linewidth=2)
     ax1.legend(loc='center left', bbox_to_anchor=(1, 0.5),fontsize=15)
     ax1.set_xlabel('Distance along the Flowline',fontsize=25)
     ax1.set_ylabel('Altitude (m)',fontsize=25)
@@ -181,7 +181,6 @@ def plot_surface(gdir, plot_dir,i):
 
     plt.savefig(os.path.join(plot_dir,'surface'+gdir.rgi_id+'.png'))
     plt.savefig(os.path.join(plot_dir, 'surface' + gdir.rgi_id + '.pdf'))
-    plt.show()
     plt.close()
 
     return
@@ -228,4 +227,29 @@ def plot_length(gdir,plot_dir):
 
     return
 
+def plot_issue(gdir,plot_dir):
+    #plt.style.use('ggplot')
+
+    fls = gdir.read_pickle('model_flowlines')
+    x = np.arange(fls[-1].nx) *fls[-1].dx * fls[-1].map_dx
+
+    plt.figure(figsize=(13,10))
+
+
+    plt.plot(x,fls[-1].surface_h,linewidth=3, label='Surface Elevation')
+    plt.plot(x,fls[-1].bed_h,'k',linewidth=3,label='Bed Topography')
+    plt.ylabel('Altitude (m)',size=30)
+    plt.xlabel('Distance along the Flowline',size=30)
+    plt.legend(loc='best',fontsize=30)
+
+
+    plt.tick_params(axis='both', which='major', labelsize=30)
+
+
+    plt.title(gdir.rgi_id+ ': '+gdir.name,size=35)
+    plt.savefig(os.path.join(plot_dir, 'issue.png'),dpi=200)
+    plt.savefig(os.path.join(plot_dir, 'issue.pdf'),dpi=200)
+    plt.show()
+
+    return
 

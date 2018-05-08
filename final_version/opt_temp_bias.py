@@ -21,7 +21,7 @@ from oggm.core.massbalance import PastMassBalance, RandomMassBalance, LinearMass
 from oggm.core.flowline import FluxBasedModel
 FlowlineModel = partial(FluxBasedModel, inplace=False)
 
-#from final_version.plots import plot_experiment,plot_surface, plot_climate,plot_length
+from final_version.plots import plot_experiment,plot_surface, plot_climate,plot_length, plot_issue
 
 
 def objfunc(param, gdir, y_t, random_climate2):
@@ -221,9 +221,9 @@ if __name__ == '__main__':
     cfg.initialize()
     cfg.PATHS['dem_file'] = get_demo_file('srtm_oetztal.tif')
     cfg.PATHS['climate_file'] = get_demo_file('HISTALP_oetztal.nc')
-    #cfg.PATHS['working_dir'] = '/home/juliaeis/Dokumente/OGGM/work_dir/find_initial_state/retreat'
-    cfg.PATHS['working_dir'] = os.environ.get("S_WORKDIR")
-    cfg.PATHS['plot_dir'] = os.path.join(cfg.PATHS['working_dir'],'plots')
+    cfg.PATHS['working_dir'] = '/home/juliaeis/Dokumente/OGGM/work_dir/find_initial_state/retreat'
+    #cfg.PATHS['working_dir'] = os.environ.get("S_WORKDIR")
+    cfg.PATHS['plot_dir'] = '/home/juliaeis/Dropbox/geteilt/OGGM_workshop_2018/plots'
 
     cfg.PARAMS['border'] = 80
     cfg.PARAMS['prcp_scaling_factor']
@@ -244,15 +244,16 @@ if __name__ == '__main__':
     gdirs = workflow.init_glacier_regions(rgidf)
 
     workflow.execute_entity_task(tasks.glacier_masks, gdirs)
-    prepare_for_initializing(gdirs)
-    gdirs = gdirs[10:]
+    #prepare_for_initializing(gdirs)
+    #gdirs = gdirs[10:]
 
-    synthetic_experiments(gdirs)
-    run_optimization(gdirs,synthetic_exp=True)
+    #synthetic_experiments(gdirs)
+    #run_optimization(gdirs,synthetic_exp=True)
 
-    #for gdir in gdirs:
-        #if gdir.rgi_id.endswith('0897'):
+    for gdir in gdirs:
+        if gdir.rgi_id.endswith('0897'):
         #plot_experiment(gdir,cfg.PATHS['plot_dir'])
-        #plot_surface(gdir,cfg.PATHS['plot_dir'],-1)
-        #plot_climate(gdir,cfg.PATHS['plot_dir'])
+            #plot_surface(gdir,cfg.PATHS['plot_dir'],-1)
+            #plot_climate(gdir,cfg.PATHS['plot_dir'])
         #plot_length(gdir,cfg.PATHS['plot_dir'])
+            plot_issue(gdir,cfg.PATHS['plot_dir'])

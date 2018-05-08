@@ -21,7 +21,7 @@ from oggm.core.massbalance import PastMassBalance, RandomMassBalance, LinearMass
 from oggm.core.flowline import FluxBasedModel
 FlowlineModel = partial(FluxBasedModel, inplace=False)
 
-from final_version.plots import plot_experiment,plot_surface, plot_climate,plot_length
+#from final_version.plots import plot_experiment,plot_surface, plot_climate,plot_length
 
 
 def objfunc(param, gdir, y_2000, random_climate2):
@@ -257,7 +257,7 @@ if __name__ == '__main__':
 
     workflow.execute_entity_task(tasks.glacier_masks, gdirs)
     prepare_for_initializing(gdirs)
-    gdirs = gdirs[:10]
+    gdirs = gdirs[10:]
 
     synthetic_experiments(gdirs)
     run_optimization(gdirs,synthetic_exp=True)

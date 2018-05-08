@@ -24,7 +24,7 @@ FlowlineModel = partial(FluxBasedModel, inplace=False)
 #from final_version.plots import plot_experiment,plot_surface, plot_climate,plot_length
 
 
-def objfunc(param, gdir, y_2000, random_climate2):
+def objfunc(param, gdir, y_t, random_climate2):
     '''
     calculate difference between predicted and observerd glacier
     :param param: temp bias to be optimized
@@ -35,9 +35,9 @@ def objfunc(param, gdir, y_2000, random_climate2):
     '''
     try:
 
-        random_model, past_model = run_model(param, gdir, y_2000, random_climate2)
-        f = np.sum(abs(past_model.fls[-1].surface_h -y_2000[-1].surface_h)**2) + \
-            np.sum(abs(past_model.fls[-1].widths - y_2000[-1].widths) ** 2)
+        random_model, past_model = run_model(param, gdir, y_t, random_climate2)
+        f = np.sum(abs(past_model.fls[-1].surface_h -y_t[-1].surface_h)**2) + \
+            np.sum(abs(past_model.fls[-1].widths - y_t[-1].widths) ** 2)
             #abs(real_model.length_m - y_2000.length_m)**2
             #abs(real_model.area_m2 - y_1900.area_m2)**2 + \
             #abs(real_model.volume_m3-y_1900.volume_m3)**2
@@ -127,19 +127,7 @@ def run_optimization(gdirs,synthetic_exp=True):
             y_t = experiments['y_t'].fls
         else:
             fls = gdir.read_pickle('model_flowlines')
-
-            climate_est = RandomMassBalance(gdir,y0=1865, halfsize=14)
-            climate_est.temp_bias=-0.75
-            est_model = FluxBasedModel(copy.deepcopy(fls), mb_model=climate_est, y0=1850)
-            est_model.run_until_equilibrium()
-
-            plt.figure()
-            plt.plot(est_model.fls[-1].surface_h,label='est model')
-            plt.plot(fls[-1].surface_h,label='fls')
-            plt.plot(fls[-1].bed_h,'k', label='bed')
-            plt.legend(loc='best')
-            plt.show()
-            y_t = copy.deepcopy(est_model.fls)
+            y_t = copy.deepcopy(fls)
 
         pool = mp.Pool()
         result_list = pool.map(partial(run_parallel, gdir=gdir, y_t=y_t),
@@ -233,7 +221,7 @@ if __name__ == '__main__':
     cfg.initialize()
     cfg.PATHS['dem_file'] = get_demo_file('srtm_oetztal.tif')
     cfg.PATHS['climate_file'] = get_demo_file('HISTALP_oetztal.nc')
-    #cfg.PATHS['working_dir'] = '/home/juliaeis/Dokumente/OGGM/work_dir/find_initial_state'
+    #cfg.PATHS['working_dir'] = '/home/juliaeis/Dokumente/OGGM/work_dir/find_initial_state/retreat'
     cfg.PATHS['working_dir'] = os.environ.get("S_WORKDIR")
     cfg.PATHS['plot_dir'] = os.path.join(cfg.PATHS['working_dir'],'plots')
 

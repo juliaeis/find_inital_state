@@ -26,7 +26,7 @@ from oggm.core.massbalance import PastMassBalance, RandomMassBalance, LinearMass
 from oggm.core.flowline import FluxBasedModel
 FlowlineModel = partial(FluxBasedModel, inplace=False)
 
-from final_version.multistep.plots import *
+#from final_version.multistep.plots import *
 
 
 def find_best_objective(gdir,y_te,t0,te):
@@ -146,7 +146,7 @@ def run_optimization(gdir,t0,te,y_te):
 
     pool = mp.Pool()
     result_list = pool.map(partial(run_parallel, gdir=gdir, y_t=y_te,t0=t0,
-                                   te=te), range(4))
+                                   te=te), range(56))
     pool.close()
     pool.join()
     gdir.write_pickle(result_list,'reconstruction_output')
@@ -156,8 +156,8 @@ def run_parallel(i,gdir,y_t,t0,te):
         random_climate2 = RandomMassBalance(gdir, y0=t0, halfsize=14)
         experiment = gdir.read_pickle('synthetic_experiment')
         # ensure that not the same climate as in the experiments is used
-        if experiment['climate']==random_climate2:
-            random_climate2 = RandomMassBalance(gdir, y0=t0, halfsize=14)
+        #if experiment['climate']==random_climate2:
+        #    random_climate2 = RandomMassBalance(gdir, y0=t0, halfsize=14)
 
         res = minimize(objfunc, [0],
                        args=(gdir, y_t,random_climate2,t0,te),
@@ -246,10 +246,10 @@ if __name__ == '__main__':
 
     #Local paths
 
-    WORKING_DIR = '/home/juliaeis/Dokumente/OGGM/work_dir/find_initial_state/retreat3'
-    utils.mkdir(WORKING_DIR, reset=False)
-    cfg.PATHS['working_dir'] = WORKING_DIR
-    #cfg.PATHS['working_dir'] = os.environ.get("S_WORKDIR")
+    #WORKING_DIR = '/home/juliaeis/Dokumente/OGGM/work_dir/find_initial_state/retreat3'
+    #utils.mkdir(WORKING_DIR, reset=False)
+    #cfg.PATHS['working_dir'] = WORKING_DIR
+    cfg.PATHS['working_dir'] = os.environ.get("S_WORKDIR")
     cfg.PATHS['plot_dir'] =os.path.join(cfg.PATHS['working_dir'],'plots')
 
     cfg.PATHS['dem_file'] = get_demo_file('srtm_oetztal.tif')
@@ -279,9 +279,8 @@ if __name__ == '__main__':
 
     # Initialize working directories
     gdir = workflow.init_glacier_regions(rgidf[rgidf.RGIId== 'RGI50-11.00897'])[0]
-    #prepare_for_initializing(gdirs)
+    prepare_for_initializing([gdir])
     #gdirs = gdirs[10:]
-
     result = pd.Series()
     fls = gdir.read_pickle('model_flowlines')
 

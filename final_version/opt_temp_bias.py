@@ -72,7 +72,7 @@ def prepare_for_initializing(gdirs):
     for gdir in gdirs:
         mass_conservation_inversion(gdir, glen_a=glen_a)
 
-    workflow.execute_entity_task(tasks.optimize_inversion_params,gdirs)
+    #workflow.execute_entity_task(tasks.optimize_inversion_params,gdirs)
     workflow.execute_entity_task(tasks.volume_inversion, gdirs)
     workflow.execute_entity_task(tasks.filter_inversion_output, gdirs)
     workflow.execute_entity_task(tasks.init_present_time_glacier,gdirs)
@@ -228,7 +228,7 @@ if __name__ == '__main__':
     cfg.PARAMS['border'] = 80
     cfg.PARAMS['prcp_scaling_factor']
     cfg.PARAMS['run_mb_calibration'] = True
-    cfg.PARAMS['optimize_inversion_params'] = True
+    cfg.PARAMS['optimize_inversion_params'] = False
     cfg.PARAMS['use_intersects'] = False
     # add to BASENAMES
     _doc = 'contains observed and searched glacier from synthetic experiment to find intial state'
@@ -240,12 +240,12 @@ if __name__ == '__main__':
 
     rgi = get_demo_file('rgi_oetztal.shp')
     rgidf = salem.read_shapefile(rgi)
-    #gdirs = workflow.init_glacier_regions(rgidf[rgidf.RGIId== 'RGI50-11.00897'])
-    gdirs = workflow.init_glacier_regions(rgidf)
+    gdirs = workflow.init_glacier_regions(rgidf[rgidf.RGIId!= 'RGI50-11.00945'])
+    #gdirs = workflow.init_glacier_regions(rgidf)
 
     workflow.execute_entity_task(tasks.glacier_masks, gdirs)
     prepare_for_initializing(gdirs)
-    gdirs = gdirs[10:]
+    gdirs = gdirs[:10]
 
     synthetic_experiments(gdirs)
     run_optimization(gdirs,synthetic_exp=True)

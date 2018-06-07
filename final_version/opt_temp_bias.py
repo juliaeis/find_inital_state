@@ -220,7 +220,7 @@ if __name__ == '__main__':
     cfg.initialize()
     cfg.PATHS['dem_file'] = get_demo_file('srtm_oetztal.tif')
     cfg.PATHS['climate_file'] = get_demo_file('HISTALP_oetztal.nc')
-    cfg.PATHS['working_dir'] = '/home/juliaeis/Dokumente/OGGM/work_dir/find_initial_state/retreat_inv_param'
+    cfg.PATHS['working_dir'] = '/home/juliaeis/Dokumente/OGGM/work_dir/find_initial_state/retreat2'
     #cfg.PATHS['working_dir'] = os.environ.get("S_WORKDIR")
     #cfg.PATHS['plot_dir'] = '/home/juliaeis/Dropbox/geteilt/OGGM_workshop_2018/plots'
     cfg.PATHS['plot_dir'] =os.path.join(cfg.PATHS['working_dir'],'plots')
@@ -246,17 +246,16 @@ if __name__ == '__main__':
     #prepare_for_initializing(gdirs)
     #gdirs = gdirs[10:]
 
-    synthetic_experiments(gdirs)
+    #synthetic_experiments(gdirs)
     #run_optimization(gdirs,synthetic_exp=True)
 
     for gdir in gdirs:
-        if gdir.rgi_id.endswith('0897'):
+        #if gdir.rgi_id.endswith('0897'):
             #print(gdir.dir)
             #plot_experiment(gdir,cfg.PATHS['plot_dir'])
             #plot_surface(gdir,cfg.PATHS['plot_dir'],-1)
             #plot_climate(gdir,cfg.PATHS['plot_dir'])
             #plot_length(gdir,cfg.PATHS['plot_dir'])
             #plot_issue(gdir,cfg.PATHS['plot_dir'])
-            #plot_each_solution(gdir,cfg.PATHS['plot_dir'],-1,best=True)
+        plot_each_solution(gdir,cfg.PATHS['plot_dir'],-1,best=True)
             #plot_objective_surface(gdir, cfg.PATHS['plot_dir'], -1, best=True)
-            pass

@@ -203,7 +203,7 @@ def plot_surface(gdir, plot_dir,i):
 
     return
 
-def plot_each_solution(gdir, plot_dir,i, best=True,):
+def plot_each_solution(gdir, plot_dir,i,t0,te, best=True,synthetic_exp=True):
 
     #plot_dir = os.path.join(plot_dir, 'surface')
     if not os.path.exists(plot_dir):
@@ -230,11 +230,12 @@ def plot_each_solution(gdir, plot_dir,i, best=True,):
         experiment['y_t'].fls[i].dx * experiment['y_t'].fls[-1].map_dx
     box = ax1.get_position()
     ax1.set_position([box.x0, box.y0, box.width * 0.95, box.height])
-    ax1.annotate(r'$t = t_0 = 1865$', xy=(0.1, 0.95), xycoords='axes fraction',
+    ax1.annotate(r'$t = t_0 = '+str(t0)+'$', xy=(0.1, 0.95), xycoords='axes fraction',
                  fontsize=30)
-    ax2.annotate(r'$t = 2000$', xy=(0.15, 0.85), xycoords='axes fraction',
+    ax2.annotate(r'$t = '+str(te)+'$', xy=(0.15, 0.85), xycoords='axes fraction',
                  fontsize=25)
 
+    # plot each solution
     for rec in reconstruction:
 
         if rec[0] != None:
@@ -251,12 +252,9 @@ def plot_each_solution(gdir, plot_dir,i, best=True,):
 
             ax1.plot(x,rec[0].fls[i].surface_h, color='grey',alpha=0.3)
             ax2.plot(x, rec[1].fls[i].surface_h,color='grey',alpha=0.3)
-    #ax1.plot(x, experiment['y_t0'].fls[i].surface_h, 'k:', linewidth=3,
-    #         label=r'$x_t$')
-    #ax1.plot(x, experiment['y_t0'].fls[i].bed_h, 'k', linewidth=3,
-    #         label=r'$b_t$')
 
-    if best:
+
+    if best and synthetic_exp:
         # calculate objective
         diff_s = surface_t.subtract(experiment['y_t'].fls[-1].surface_h,axis=1)**2
         diff_w = widths_t.subtract(experiment['y_t'].fls[-1].widths,axis=1)**2
@@ -265,29 +263,28 @@ def plot_each_solution(gdir, plot_dir,i, best=True,):
         ax1.plot(x,surface_t0.iloc[min_id].values, 'r',linewidth=3, label='best objective')
         ax2.plot(x, surface_t.iloc[min_id].values, 'r', linewidth=2,
                  label='best objective')
-    '''
-    ax1.plot(x, surface_t0.median(axis=0), label='median', linewidth=3)
 
-    ax1.fill_between(x, surface_t0.quantile(q=0.75, axis=0).values,
-                     surface_t0.quantile(q=0.25, axis=0).values,
-                     alpha=0.5, label='IQR')
+    if best and not synthetic_exp:
+        diff_s = surface_t.subtract(fls[-1].surface_h, axis=1) ** 2
+        diff_w = widths_t.subtract(fls[-1].widths, axis=1) ** 2
+        objective = diff_s.sum(axis=1) + diff_w.sum(axis=1)
+        min_id = objective.argmin(axis=0)
+        ax1.plot(x, surface_t0.iloc[min_id].values, 'r', linewidth=3,
+                 label='best objective')
+        ax2.plot(x, surface_t.iloc[min_id].values, 'r', linewidth=2,
+                 label='best objective')
 
-    ax1.fill_between(x, surface_t0.min(axis=0).values,
-                     surface_t0.max(axis=0).values, alpha=0.2, color='grey',
-                     label='total range')
 
-    ax2.plot(x, surface_t.median(axis=0), linewidth=2)
-    ax2.fill_between(x, surface_t.quantile(q=0.75, axis=0).values,
-                     surface_t.quantile(q=0.25, axis=0).values,
-                     alpha=0.5)
-    ax2.fill_between(x, surface_t.min(axis=0).values,
-                     surface_t.max(axis=0).values, alpha=0.2, color='grey')
+    if synthetic_exp:
+        ax1.plot(x, experiment['y_t0'].fls[i].surface_h, 'k:', linewidth=3)
+        ax2.plot(x, experiment['y_t'].fls[i].surface_h, 'k:', linewidth=2)
 
-    '''
-    ax1.plot(x, experiment['y_t0'].fls[i].surface_h, 'k:', linewidth=3)
+    else:
+        ax2.plot(x, fls[i].surface_h, 'k', linewidth=2)
+
     ax1.plot(x, experiment['y_t0'].fls[i].bed_h, 'k', linewidth=3)
     ax2.plot(x, experiment['y_t'].fls[i].bed_h, 'k',linewidth=2)
-    ax2.plot(x, experiment['y_t'].fls[i].surface_h, 'k:',linewidth=2)
+
     ax1.legend(loc='center left', bbox_to_anchor=(1, 0.5),fontsize=20)
     ax1.set_xlabel('Distance along the Flowline',fontsize=30)
     ax1.set_ylabel('Altitude (m)',fontsize=30)
@@ -297,9 +294,9 @@ def plot_each_solution(gdir, plot_dir,i, best=True,):
     ax1.tick_params(axis='both', which='major', labelsize=25)
     ax2.tick_params(axis='both', which='major', labelsize=20)
 
-    plt.savefig(os.path.join(plot_dir, 'median_'+str(gdir.rgi_id)+'.png'))
+    #plt.savefig(os.path.join(plot_dir, 'median_'+str(gdir.rgi_id)+'.png'))
     plt.show()
-    plt.close()
+    #plt.close()
 
     return
 

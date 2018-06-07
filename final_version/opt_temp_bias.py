@@ -1,7 +1,7 @@
 
 # Built ins
 import os
-import copy
+from copy import deepcopy
 from functools import partial
 
 # External libs
@@ -21,7 +21,7 @@ from oggm.core.massbalance import PastMassBalance, RandomMassBalance, LinearMass
 from oggm.core.flowline import FluxBasedModel
 FlowlineModel = partial(FluxBasedModel, inplace=False)
 
-#from final_version.plots import plot_experiment,plot_surface, plot_climate,plot_length
+from final_version.plots import *
 
 
 def objfunc(param, gdir, y_t, random_climate2):
@@ -93,14 +93,14 @@ def run_model(param,gdir,y_t,random_climate2):
 
 
     # estimated flowline = observed flowline
-    estimated_fls = copy.deepcopy(y_t)
-    climate = copy.deepcopy(random_climate2)
+    estimated_fls = deepcopy(y_t)
+    climate = deepcopy(random_climate2)
     # change temp_bias
     climate.temp_bias = param
     random_model = FluxBasedModel(estimated_fls, mb_model=climate, y0=1865)
     random_model.run_until_equilibrium()
     # run glacier candidate with past climate until 2000
-    candidate_fls= copy.deepcopy(y_t)
+    candidate_fls= deepcopy(y_t)
     for i in range(len(y_t)):
         candidate_fls[i].surface_h = random_model.fls[i].surface_h
 
@@ -127,7 +127,7 @@ def run_optimization(gdirs,synthetic_exp=True):
             y_t = experiments['y_t'].fls
         else:
             fls = gdir.read_pickle('model_flowlines')
-            y_t = copy.deepcopy(fls)
+            y_t = deepcopy(fls)
 
         pool = mp.Pool()
         result_list = pool.map(partial(run_parallel, gdir=gdir, y_t=y_t),
@@ -170,30 +170,29 @@ def _run_parallel_experiment(gdir):
         commit_model = FluxBasedModel(fls, mb_model=random_climate1,
                                       glen_a=cfg.A, y0=1850)
         commit_model.run_until_equilibrium()
-        y_t0 = copy.deepcopy(commit_model)
+        y_t0 = deepcopy(commit_model)
 
     # try different seed of mass balance, if equilibrium could not be found
     except:
+
         # construct searched glacier
         random_climate1 = RandomMassBalance(gdir, y0=1865, halfsize=14)
         commit_model = FluxBasedModel(fls, mb_model=random_climate1,
                                       glen_a=cfg.A, y0=1850)
         commit_model.run_until_equilibrium()
-        y_t0 = copy.deepcopy(commit_model)
+        y_t0 = deepcopy(commit_model)
 
     # construct observed glacier
     past_climate = PastMassBalance(gdir)
     commit_model2 = FluxBasedModel(commit_model.fls, mb_model=past_climate,
                                    glen_a=cfg.A, y0=1865)
     commit_model2.run_until(2000)
-    y_t = copy.deepcopy(commit_model2)
+    y_t = deepcopy(commit_model2)
 
     # save output in gdir_dir
     experiment = {'y_t0': y_t0, 'y_t': y_t,
                   'climate': random_climate1}
     gdir.write_pickle(experiment, 'synthetic_experiment')
-
-
 def synthetic_experiments(gdirs):
     '''
     creates searched and observed glacier to test the method, need only to
@@ -221,10 +220,10 @@ if __name__ == '__main__':
     cfg.initialize()
     cfg.PATHS['dem_file'] = get_demo_file('srtm_oetztal.tif')
     cfg.PATHS['climate_file'] = get_demo_file('HISTALP_oetztal.nc')
-    #cfg.PATHS['working_dir'] = '/home/juliaeis/Dokumente/OGGM/work_dir/find_initial_state/retreat'
-    cfg.PATHS['working_dir'] = os.environ.get("S_WORKDIR")
-    cfg.PATHS['plot_dir'] = os.path.join(cfg.PATHS['working_dir'],'plots')
-
+    cfg.PATHS['working_dir'] = '/home/juliaeis/Dokumente/OGGM/work_dir/find_initial_state/retreat2'
+    #cfg.PATHS['working_dir'] = os.environ.get("S_WORKDIR")
+    #cfg.PATHS['plot_dir'] = '/home/juliaeis/Dropbox/geteilt/OGGM_workshop_2018/plots'
+    cfg.PATHS['plot_dir'] =os.path.join(cfg.PATHS['working_dir'],'plots')
     cfg.PARAMS['border'] = 80
     cfg.PARAMS['prcp_scaling_factor']
     cfg.PARAMS['run_mb_calibration'] = True
@@ -247,12 +246,16 @@ if __name__ == '__main__':
     prepare_for_initializing(gdirs)
     gdirs = gdirs[:10]
 
-    synthetic_experiments(gdirs)
-    run_optimization(gdirs,synthetic_exp=True)
+    #synthetic_experiments(gdirs)
+    #run_optimization(gdirs,synthetic_exp=True)
 
-    #for gdir in gdirs:
+    for gdir in gdirs:
         #if gdir.rgi_id.endswith('0897'):
-        #plot_experiment(gdir,cfg.PATHS['plot_dir'])
-        #plot_surface(gdir,cfg.PATHS['plot_dir'],-1)
-        #plot_climate(gdir,cfg.PATHS['plot_dir'])
-        #plot_length(gdir,cfg.PATHS['plot_dir'])
+            #print(gdir.dir)
+            #plot_experiment(gdir,cfg.PATHS['plot_dir'])
+            #plot_surface(gdir,cfg.PATHS['plot_dir'],-1)
+            #plot_climate(gdir,cfg.PATHS['plot_dir'])
+            #plot_length(gdir,cfg.PATHS['plot_dir'])
+            #plot_issue(gdir,cfg.PATHS['plot_dir'])
+        plot_each_solution(gdir,cfg.PATHS['plot_dir'],-1,best=True)
+            #plot_objective_surface(gdir, cfg.PATHS['plot_dir'], -1, best=True)

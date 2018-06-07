@@ -154,11 +154,6 @@ def run_optimization(gdir,t0,te,y_te):
 def run_parallel(i,gdir,y_t,t0,te):
     try:
         random_climate2 = RandomMassBalance(gdir, y0=t0, halfsize=14)
-        experiment = gdir.read_pickle('synthetic_experiment')
-        # ensure that not the same climate as in the experiments is used
-        #if experiment['climate']==random_climate2:
-        #    random_climate2 = RandomMassBalance(gdir, y0=t0, halfsize=14)
-
         res = minimize(objfunc, [0],
                        args=(gdir, y_t,random_climate2,t0,te),
                        method='COBYLA',
@@ -245,11 +240,13 @@ if __name__ == '__main__':
     cfg.initialize()
 
     #Local paths
+    if sys.platform == 'linux2':
+        cfg.PATHS['working_dir'] = os.environ.get("S_WORKDIR")
+    else:
+        WORKING_DIR = '/home/juliaeis/Dokumente/OGGM/work_dir/find_initial_state/retreat3'
+        utils.mkdir(WORKING_DIR, reset=False)
+        cfg.PATHS['working_dir'] = WORKING_DIR
 
-    #WORKING_DIR = '/home/juliaeis/Dokumente/OGGM/work_dir/find_initial_state/retreat3'
-    #utils.mkdir(WORKING_DIR, reset=False)
-    #cfg.PATHS['working_dir'] = WORKING_DIR
-    cfg.PATHS['working_dir'] = os.environ.get("S_WORKDIR")
     cfg.PATHS['plot_dir'] =os.path.join(cfg.PATHS['working_dir'],'plots')
 
     cfg.PATHS['dem_file'] = get_demo_file('srtm_oetztal.tif')
@@ -278,9 +275,9 @@ if __name__ == '__main__':
     rgidf = salem.read_shapefile(rgi)
 
     # Initialize working directories
-    gdir = workflow.init_glacier_regions(rgidf[rgidf.RGIId== 'RGI50-11.00897'])[0]
+    gdir = workflow.init_glacier_regions(rgidf[rgidf.RGIId== 'RGI50-11.00897'],reset=True)[0]
     prepare_for_initializing([gdir])
-    #gdirs = gdirs[10:]
+
     result = pd.Series()
     fls = gdir.read_pickle('model_flowlines')
 

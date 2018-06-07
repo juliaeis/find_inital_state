@@ -238,9 +238,9 @@ if __name__ == '__main__':
 
     #initialize OGGM and set up the default run parameters
     cfg.initialize()
-
+    ON_CLUSTER = True
     #Local paths
-    if sys.platform == 'linux2':
+    if ON_CLUSTER:
         cfg.PATHS['working_dir'] = os.environ.get("S_WORKDIR")
     else:
         WORKING_DIR = '/home/juliaeis/Dokumente/OGGM/work_dir/find_initial_state/retreat3'

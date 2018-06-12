@@ -7,6 +7,7 @@ from functools import partial
 from scipy.interpolate import UnivariateSpline
 FlowlineModel = partial(FluxBasedModel, inplace=False)
 
+import pickle
 import os
 import salem
 import copy
@@ -170,6 +171,7 @@ def find_initial_state(gdir):
     results = [parallel(x, x0, cons,gdir) for x in range(75, 225, 25)]
     #output = [p.get() for p in results]
     output=results
+    pickle.dump(output,open('/home/juliaeis/PycharmProjects/find_inital_state/test_HEF/solution.pkl','wb'))
     for index,shape in enumerate(output):
         try:
             model,end_model = run_model(shape, gdir)
@@ -194,7 +196,7 @@ def find_initial_state(gdir):
     if not os.path.isdir(plot_dir):
         os.makedirs(plot_dir)
     plt.savefig(os.path.join(plot_dir,gdir.rgi_id+'.png'))
-    #plt.show()
+    plt.show()
     print(gdir.rgi_id, 'finished')
 
 
@@ -204,8 +206,8 @@ if __name__ == '__main__':
 
     cfg.PATHS['dem_file'] = get_demo_file('srtm_oetztal.tif')
     cfg.PATHS['climate_file'] = get_demo_file('HISTALP_oetztal.nc')
-    #cfg.PATHS['working_dir'] = '/home/juliaeis/PycharmProjects/find_inital_state/test_HEF'
-    cfg.PATHS['working_dir'] = os.environ.get("S_WORKDIR")
+    cfg.PATHS['working_dir'] = '/home/juliaeis/PycharmProjects/find_inital_state/test_HEF'
+    #cfg.PATHS['working_dir'] = os.environ.get("S_WORKDIR")
     cfg.PARAMS['border'] = 80
     cfg.PARAMS['prcp_scaling_factor']
     cfg.PARAMS['run_mb_calibration'] = True
@@ -217,10 +219,15 @@ if __name__ == '__main__':
     gdirs = workflow.init_glacier_regions(salem.read_shapefile(rgi))
     workflow.execute_entity_task(tasks.glacier_masks, gdirs)
 
-    prepare_for_initializing(gdirs)
+    for gdir in gdirs:
+        if gdir.rgi_id.endswith('00897'):
+            prepare_for_initializing([gdir])
+            find_initial_state(gdir)
+    '''
     pool = mp.Pool()
     pool.map(find_initial_state,gdirs)
     pool.close()
     pool.join()
+    '''
 
 

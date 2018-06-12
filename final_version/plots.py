@@ -1,6 +1,6 @@
 import matplotlib.pyplot as plt
 #plt.style.use('ggplot')
-import seaborn as sns
+#import seaborn as sns
 import pandas as pd
 import numpy as np
 import xarray as xr
@@ -113,7 +113,7 @@ def plot_experiment (gdir, plot_dir):
     plt.close()
     return
 
-def plot_surface(gdir, plot_dir,i):
+def plot_surface(gdir, plot_dir,i,best=True):
 
     #plot_dir = os.path.join(plot_dir, 'surface')
     if not os.path.exists(plot_dir):
@@ -124,6 +124,7 @@ def plot_surface(gdir, plot_dir,i):
 
     surface_t0 = pd.DataFrame()
     surface_t = pd.DataFrame()
+    widths_t = pd.DataFrame()
 
     for rec in reconstruction:
 
@@ -133,27 +134,25 @@ def plot_surface(gdir, plot_dir,i):
                                            ignore_index=True)
             surface_t = surface_t.append([rec[1].fls[i].surface_h],
                                          ignore_index=True)
-
+            widths_t = widths_t.append([rec[1].fls[i].widths],
+                                           ignore_index=True)
     x = np.arange(experiment['y_t'].fls[i].nx) * \
-        experiment['y_t'].fls[i].dx * experiment['y_t'].fls[-1].map_dx
+                experiment['y_t'].fls[i].dx * experiment['y_t'].fls[-1].map_dx
 
-    fig, ax1 = plt.subplots(figsize=(25, 15))
+
+    fig, ax1 = plt.subplots(figsize=(27, 15))
     ax2 = fig.add_axes([0.55, 0.66, 0.3, 0.2])
     if gdir.name != "":
         ax1.set_title(gdir.rgi_id + ': '+gdir.name,fontsize=30)
     else:
-        ax1.set_title(gdir.rgi_id, fontsize=25)
+        ax1.set_title(gdir.rgi_id, fontsize=30)
     box = ax1.get_position()
     ax1.set_position([box.x0, box.y0, box.width * 0.95, box.height])
     ax1.annotate(r'$t = t_0 = 1865$', xy=(0.1, 0.95), xycoords='axes fraction',
-                 fontsize=30)
+                 fontsize=35)
     ax2.annotate(r'$t = 2000$', xy=(0.15, 0.85), xycoords='axes fraction',
-                 fontsize=25)
-    '''
-    ax1.plot(x, experiment['y_t0'].fls[i].surface_h, 'k:',linewidth=3, label=r'$\widetilde{x}_t$' )
-    ax1.plot(x, experiment['y_t0'].fls[i].bed_h, 'k', linewidth=3,label=r'$b_t$')
-    ax1.plot(x, surface_t0.median(axis=0),linewidth=3, label='median'+r'$\left(\widehat{x}_t^j\right)$')
-    '''
+                 fontsize=20)
+
     ax1.plot(x, experiment['y_t0'].fls[i].surface_h, 'k:', linewidth=3,
              label=r'$x_t$')
     ax1.plot(x, experiment['y_t0'].fls[i].bed_h, 'k', linewidth=3,
@@ -168,16 +167,19 @@ def plot_surface(gdir, plot_dir,i):
                      surface_t0.max(axis=0).values, alpha=0.2, color='grey',
                      label='total range' )
 
+    if best:
+        # calculate objective
+        diff_s = surface_t.subtract(experiment['y_t'].fls[-1].surface_h,axis=1)**2
+        diff_w = widths_t.subtract(experiment['y_t'].fls[-1].widths,axis=1)**2
+        objective = diff_s.sum(axis=1) + diff_w.sum(axis=1)
+        min_id = objective.argmin(axis=0)
+        ax1.plot(x,surface_t0.iloc[min_id].values, 'r',linewidth=3, label='best objective')
+        ax2.plot(x, surface_t.iloc[min_id].values, 'r', linewidth=2,
+                 label='best objective')
+
     ax1.plot(x, experiment['y_t0'].fls[i].surface_h, 'k:',linewidth=3)
     ax1.plot(x, experiment['y_t0'].fls[i].bed_h, 'k',linewidth=3)
-    '''
-    ax1.fill_between(x, surface_t0.quantile(q=0.75, axis=0).values,
-                     surface_t0.quantile(q=0.25, axis=0).values,
-                     alpha=0.5,label='IQR'+r'$\left(\widehat{x}_t^j\right)$')
-    ax1.fill_between(x, surface_t0.min(axis=0).values,
-                     surface_t0.max(axis=0).values, alpha=0.2, color='grey',
-                     label='range'+r'$\left(\widehat{x}_t^j\right)$')
-    '''
+
     ax2.plot(x, surface_t.median(axis=0),linewidth=2)
     ax2.fill_between(x, surface_t.quantile(q=0.75, axis=0).values,
                      surface_t.quantile(q=0.25, axis=0).values,
@@ -187,18 +189,22 @@ def plot_surface(gdir, plot_dir,i):
 
     ax2.plot(x, experiment['y_t'].fls[i].bed_h, 'k',linewidth=2)
     ax2.plot(x, experiment['y_t'].fls[i].surface_h, 'k:',linewidth=2)
-    ax1.legend(loc='center left', bbox_to_anchor=(1, 0.5),fontsize=20)
-    ax1.set_xlabel('Distance along the Flowline',fontsize=30)
-    ax1.set_ylabel('Altitude (m)',fontsize=30)
+    ax1.legend(loc='center left', bbox_to_anchor=(1, 0.5),fontsize=25)
+    #ax1.legend(loc='lower left', fontsize=25)
+    ax1.set_xlabel('Distance along the Flowline',fontsize=35)
+    ax1.set_ylabel('Altitude (m)',fontsize=35)
 
-    ax2.set_xlabel('Distance along the Flowline (m)',fontsize=22)
-    ax2.set_ylabel('Altitude (m)',fontsize=22)
-    ax1.tick_params(axis='both', which='major', labelsize=25)
-    ax2.tick_params(axis='both', which='major', labelsize=20)
+    ax2.set_xlabel('Distance along the Flowline (m)',fontsize=25)
+    ax2.set_ylabel('Altitude (m)',fontsize=25)
+    ax1.tick_params(axis='both', which='major', labelsize=35)
+    ax2.tick_params(axis='both', which='major', labelsize=30)
 
-    #plt.savefig(os.path.join(plot_dir,'surface'+gdir.rgi_id+'.png'))
-    #plt.savefig(os.path.join(plot_dir, 'surface_HEF.pdf'))
-    plt.show()
+    for axis in ['top', 'bottom', 'left', 'right']:
+        ax1.spines[axis].set_linewidth(1.5)
+        ax2.spines[axis].set_linewidth(1.5)
+
+    plt.savefig(os.path.join(plot_dir,'surface'+gdir.rgi_id+'.png'),dpi=200)
+    #plt.show()
     plt.close()
 
     return
@@ -297,8 +303,8 @@ def plot_each_solution(gdir, plot_dir,i, best=True,):
     ax1.tick_params(axis='both', which='major', labelsize=25)
     ax2.tick_params(axis='both', which='major', labelsize=20)
 
-    plt.savefig(os.path.join(plot_dir, 'median_'+str(gdir.rgi_id)+'.png'))
-    plt.show()
+    plt.savefig(os.path.join(plot_dir, 'all_solutions'+str(gdir.rgi_id)+'.png'))
+    #plt.show()
     plt.close()
 
     return
@@ -389,7 +395,7 @@ def plot_objective_surface(gdir, plot_dir,i, best=True):
 
     return
 
-def plot_length_change(gdir,plot_dir,t0,te):
+def plot_length_only(gdir,plot_dir,t0,te):
     reconstruction = gdir.read_pickle('reconstruction_output')
     experiment = gdir.read_pickle('synthetic_experiment')
     surface_t0 = pd.DataFrame()
@@ -409,7 +415,8 @@ def plot_length_change(gdir,plot_dir,t0,te):
 
     past_climate = PastMassBalance(gdir)
 
-    plt.figure(figsize=(25,15))
+    fig = plt.figure(figsize=(25,15))
+    ax = fig.add_subplot(111)
 
     for i in np.arange(0,30,1):
         fls = gdir.read_pickle('model_flowlines')
@@ -419,10 +426,9 @@ def plot_length_change(gdir,plot_dir,t0,te):
             past_model = FluxBasedModel(fls, mb_model=past_climate,
                                         glen_a=cfg.A, y0=t0)
             a, b = past_model.run_until_and_store(te)
-            plt.plot(b.length_m.to_series().rolling(36, center=True).mean()-b.length_m.to_series().iloc[-1], alpha=0.3,color='grey', label='')
+            (b.length_m.rolling(time=36,center=True).mean()).plot(ax=ax, alpha=0.3,color='grey', label='')
         except:
             pass
-
     # mean plot
     fls = gdir.read_pickle('model_flowlines')
     fls[-1].surface_h = surface_t0.median(axis=0).values
@@ -430,7 +436,7 @@ def plot_length_change(gdir,plot_dir,t0,te):
     past_model = FluxBasedModel(fls, mb_model=past_climate,
                                 glen_a=cfg.A, y0=t0)
     a,b = past_model.run_until_and_store(te)
-    plt.plot(b.length_m.to_series().rolling(36, center=True).mean()-b.length_m.to_series().iloc[-1],linewidth=3,  label = 'median')
+    (b.length_m.rolling(time=36, center=True).mean()).plot(ax=ax,linewidth=3,  label = 'median')
 
     #objective plot
 
@@ -446,8 +452,8 @@ def plot_length_change(gdir,plot_dir,t0,te):
     past_model = FluxBasedModel(fls, mb_model=past_climate,
                                 glen_a=cfg.A, y0=t0)
     a, b = past_model.run_until_and_store(te)
-    plt.plot(b.length_m.to_series().rolling(36, center=True).mean() -
-             b.length_m.to_series().iloc[-1],'r', linewidth=3, label='best objective')
+    (b.length_m.rolling(time=36, center=True).mean()).plot(ax=ax,color='red', linewidth=3, label='best objective')
+
 
     # experiment plot
     fls = gdir.read_pickle('synthetic_experiment')['y_t0'].fls
@@ -455,38 +461,45 @@ def plot_length_change(gdir,plot_dir,t0,te):
     past_model = FluxBasedModel(fls, mb_model=past_climate,
                                 glen_a=cfg.A, y0=t0)
     a, b = past_model.run_until_and_store(te)
-    plt.plot(b.length_m.to_series().rolling(36, center=True).mean() -
-             b.length_m.to_series().iloc[-1], 'k:', linewidth=3,
+    (b.length_m.rolling(time=36, center=True).mean()).plot(ax=ax,color='k',linestyle=':', linewidth=3,
              label='experiment')
 
-    if gdir.name != "":
-        plt.title(gdir.rgi_id + ': ' + gdir.name, fontsize=25)
-    else:
-        plt.title(gdir.rgi_id, fontsize=25)
-    plt.ylabel('Glacier Lenght Change (m) ',fontsize=25)
-    plt.xlabel('Time',fontsize=25)
-    plt.legend(loc='best',fontsize=25)
-    plt.xlim((t0,te))
-    plt.tick_params(axis='both', which='major', labelsize=25)
-    plt.savefig(os.path.join(plot_dir, 'lengths_RGI50-11-00687.pdf'), dpi=200)
     try:
         df = gdir.get_ref_length_data()
-        df = df.loc[1855:2003]['dL']
-        df = df - df.iloc[-1]
-        plt.plot(df,'k',linewidth=3, label='real observations')
-
-        fls = gdir.read_pickle('model_flowlines')
-        past_model = FluxBasedModel(fls, mb_model=past_climate,
-                                    glen_a=cfg.A, y0=1865)
-        a, b = past_model.run_until_and_store(2000)
-        plt.plot(b.length_m.to_series().rolling(36, center=True).mean() -
-                 b.length_m.to_series().iloc[0],linewidth=3,  label='default initial state')
-        plt.legend(loc='best',fontsize=25)
-        plt.savefig(os.path.join(plot_dir, 'lengths_RGI50-11-00687_obs.pdf'), dpi=200)
-
+        df = df.loc[1855:2000]['dL']
+        df = df - df.iloc[-1]+past_model.length_m
+        df = df.reset_index().set_index('years')
+        df = df.rename(columns={'dL':'real observations'})
+        #df.plot(ax=ax,use_index=True,color='k', linewidth=3, label='real observations')
     except:
-        pass
-    plt.show()
+       pass
+
+    fls = gdir.read_pickle('model_flowlines')
+    past_model = FluxBasedModel(fls, mb_model=past_climate,
+                                glen_a=cfg.A, y0=t0)
+
+
+    fls = gdir.read_pickle('model_flowlines')
+    past_model = FluxBasedModel(fls, mb_model=past_climate,
+                                glen_a=cfg.A, y0=t0)
+    a, b = past_model.run_until_and_store(te)
+    (b.length_m.rolling(time=36, center=True).mean()).plot(ax=ax,linewidth=3,  label='default initial state')
+    plt.legend(loc='best',fontsize=30)
+    if gdir.name != "":
+        ax.set_title(gdir.rgi_id + ': ' + gdir.name, fontsize=30)
+    else:
+        ax.set_title(gdir.rgi_id, fontsize=30)
+
+    ax.set_xlabel('Time', fontsize=35)
+    ax.legend(loc='best', fontsize=30)
+    plt.xlim((t0, te))
+    plt.tick_params(axis='both', which='major', labelsize=35)
+    ax.set_ylabel('Glacier Lenght Change (m) ', fontsize=35)
+    plt.savefig(os.path.join(plot_dir, 'lengths_'+str(gdir.rgi_id)+'.png'), dpi=300)
+
+    #except:
+    #    pass
+    #plt.show()
     return
 
 
@@ -510,7 +523,8 @@ def plot_length(gdir,plot_dir,t0,te):
 
     past_climate = PastMassBalance(gdir)
 
-    plt.figure(figsize=(25,15))
+    fig = plt.figure(figsize=(25,15))
+    ax = fig.add_subplot(111)
 
     for i in np.arange(0,30,1):
         fls = gdir.read_pickle('model_flowlines')
@@ -520,10 +534,9 @@ def plot_length(gdir,plot_dir,t0,te):
             past_model = FluxBasedModel(fls, mb_model=past_climate,
                                         glen_a=cfg.A, y0=t0)
             a, b = past_model.run_until_and_store(te)
-            plt.plot(b.length_m.to_series().rolling(36, center=True).mean(), alpha=0.3,color='grey', label='')
+            (b.length_m.rolling(time=36,center=True).mean()-b.length_m[-1]).plot(ax=ax, alpha=0.3,color='grey', label='')
         except:
             pass
-
     # mean plot
     fls = gdir.read_pickle('model_flowlines')
     fls[-1].surface_h = surface_t0.median(axis=0).values
@@ -531,7 +544,7 @@ def plot_length(gdir,plot_dir,t0,te):
     past_model = FluxBasedModel(fls, mb_model=past_climate,
                                 glen_a=cfg.A, y0=t0)
     a,b = past_model.run_until_and_store(te)
-    plt.plot(b.length_m.to_series().rolling(36, center=True).mean(),linewidth=3,  label = 'median')
+    (b.length_m.rolling(time=36, center=True).mean()-b.length_m[-1]).plot(ax=ax,linewidth=3,  label = 'median')
 
     #objective plot
 
@@ -547,7 +560,8 @@ def plot_length(gdir,plot_dir,t0,te):
     past_model = FluxBasedModel(fls, mb_model=past_climate,
                                 glen_a=cfg.A, y0=t0)
     a, b = past_model.run_until_and_store(te)
-    plt.plot(b.length_m.to_series().rolling(36, center=True).mean(),'r', linewidth=3, label='best objective')
+    (b.length_m.rolling(time=36, center=True).mean()-b.length_m[-1]).plot(ax=ax,color='red', linewidth=3, label='best objective')
+
 
     # experiment plot
     fls = gdir.read_pickle('synthetic_experiment')['y_t0'].fls
@@ -555,41 +569,45 @@ def plot_length(gdir,plot_dir,t0,te):
     past_model = FluxBasedModel(fls, mb_model=past_climate,
                                 glen_a=cfg.A, y0=t0)
     a, b = past_model.run_until_and_store(te)
-    #plt.plot(b.length_m.to_series().rolling(36, center=True).mean(), 'k:', linewidth=3,
-    #         label='experiment')
+    (b.length_m.rolling(time=36, center=True).mean()-b.length_m[-1]).plot(ax=ax,color='k',linestyle=':', linewidth=3,
+             label='experiment')
+
+    try:
+        df = gdir.get_ref_length_data()
+        df = df.loc[1855:2000]['dL']
+        df = df - df.iloc[-1]
+        df = df.reset_index().set_index('years')
+        df = df.rename(columns={'dL':'real observations'})
+        df.plot(ax=ax,use_index=True,color='k', linewidth=3, label='real observations')
+    except:
+       pass
 
     fls = gdir.read_pickle('model_flowlines')
     past_model = FluxBasedModel(fls, mb_model=past_climate,
                                 glen_a=cfg.A, y0=t0)
-    plt.plot([2000],[past_model.length_m],'o')
 
-    if gdir.name != "":
-        plt.title(gdir.rgi_id + ': ' + gdir.name, fontsize=25)
-    else:
-        plt.title(gdir.rgi_id, fontsize=25)
-    plt.ylabel('Glacier Lenght Change (m) ',fontsize=25)
-    plt.xlabel('Time',fontsize=25)
-    plt.legend(loc='best',fontsize=25)
-    plt.xlim((t0,te))
-    plt.tick_params(axis='both', which='major', labelsize=25)
-    plt.savefig(os.path.join(plot_dir, 'lengths_RGI50-11-00687.pdf'), dpi=200)
-    #try:
-    df = gdir.get_ref_length_data()
-    df = df.loc[1855:2000]['dL']
-    df = df - df.iloc[-1]+past_model.length_m
-    plt.plot(df,'k',linewidth=3, label='real observations')
 
     fls = gdir.read_pickle('model_flowlines')
     past_model = FluxBasedModel(fls, mb_model=past_climate,
                                 glen_a=cfg.A, y0=t0)
     a, b = past_model.run_until_and_store(te)
-    plt.plot(b.length_m.to_series().rolling(36, center=True).mean(),linewidth=3,  label='default initial state')
-    plt.legend(loc='best',fontsize=25)
-    plt.savefig(os.path.join(plot_dir, 'lengths_RGI50-11-00687_obs.pdf'), dpi=200)
+    (b.length_m.rolling(time=36, center=True).mean()-b.length_m[-1]).plot(ax=ax,linewidth=3,  label='default initial state')
+    plt.legend(loc='best',fontsize=30)
+    if gdir.name != "":
+        ax.set_title(gdir.rgi_id + ': ' + gdir.name, fontsize=30)
+    else:
+        ax.set_title(gdir.rgi_id, fontsize=30)
+
+    ax.set_xlabel('Time', fontsize=35)
+    ax.legend(loc='best', fontsize=30)
+    plt.xlim((t0, te))
+    plt.tick_params(axis='both', which='major', labelsize=35)
+    ax.set_ylabel('Glacier Lenght Change (m) ', fontsize=35)
+    plt.savefig(os.path.join(plot_dir, 'lengths_change'+str(gdir.rgi_id)+'.png'), dpi=300)
 
     #except:
     #    pass
-    plt.show()
+    #plt.show()
     return
 
 

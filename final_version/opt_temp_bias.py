@@ -218,33 +218,47 @@ def synthetic_experiments(gdirs):
 
 if __name__ == '__main__':
     cfg.initialize()
+    ON_CLUSTER = False
+    # Local paths
+    if ON_CLUSTER:
+        cfg.PATHS['working_dir'] = os.environ.get("S_WORKDIR")
+    else:
+        WORKING_DIR = '/home/juliaeis/Dokumente/OGGM/work_dir/find_initial_state/reconstruction_real_flowlines'
+        utils.mkdir(WORKING_DIR, reset=False)
+        cfg.PATHS['working_dir'] = WORKING_DIR
+
+    cfg.PATHS['plot_dir'] = os.path.join(cfg.PATHS['working_dir'], 'plots')
+
     cfg.PATHS['dem_file'] = get_demo_file('srtm_oetztal.tif')
     cfg.PATHS['climate_file'] = get_demo_file('HISTALP_oetztal.nc')
-    cfg.PATHS['working_dir'] = '/home/juliaeis/Dokumente/OGGM/work_dir/find_initial_state/retreat2'
-    #cfg.PATHS['working_dir'] = os.environ.get("S_WORKDIR")
-    #cfg.PATHS['plot_dir'] = '/home/juliaeis/Dropbox/geteilt/OGGM_workshop_2018/plots'
-    cfg.PATHS['plot_dir'] =os.path.join(cfg.PATHS['working_dir'],'plots')
+
+    # Use multiprocessing?
+    cfg.PARAMS['use_multiprocessing'] = True
+
+    # How many grid points around the glacier?
     cfg.PARAMS['border'] = 80
-    cfg.PARAMS['prcp_scaling_factor']
+
     cfg.PARAMS['run_mb_calibration'] = True
     cfg.PARAMS['optimize_inversion_params'] = False
     cfg.PARAMS['use_intersects'] = False
+
     # add to BASENAMES
     _doc = 'contains observed and searched glacier from synthetic experiment to find intial state'
-    cfg.BASENAMES['synthetic_experiment'] = ('synthetic_experiment.pkl',_doc)
+    cfg.BASENAMES['synthetic_experiment'] = ('synthetic_experiment.pkl', _doc)
     _doc = 'output of reconstruction'
-    cfg.BASENAMES['reconstruction_output'] =('reconstruction_output.pkl',_doc)
+    cfg.BASENAMES['reconstruction_output'] = (
+    'reconstruction_output.pkl', _doc)
 
     plt.rcParams['figure.figsize'] = (8, 8)  # Default plot size
 
     rgi = get_demo_file('rgi_oetztal.shp')
     rgidf = salem.read_shapefile(rgi)
-    gdirs = workflow.init_glacier_regions(rgidf[rgidf.RGIId!= 'RGI50-11.00945'])
+    gdirs = workflow.init_glacier_regions(rgidf[rgidf.RGIId != 'RGI50-11.00687'])
     #gdirs = workflow.init_glacier_regions(rgidf)
 
     workflow.execute_entity_task(tasks.glacier_masks, gdirs)
-    prepare_for_initializing(gdirs)
-    gdirs = gdirs[:10]
+    #prepare_for_initializing(gdirs)
+    gdirs = gdirs
 
     #synthetic_experiments(gdirs)
     #run_optimization(gdirs,synthetic_exp=True)
@@ -253,9 +267,10 @@ if __name__ == '__main__':
         #if gdir.rgi_id.endswith('0897'):
             #print(gdir.dir)
             #plot_experiment(gdir,cfg.PATHS['plot_dir'])
-            #plot_surface(gdir,cfg.PATHS['plot_dir'],-1)
+        #plot_surface(gdir,cfg.PATHS['plot_dir'],-1)
             #plot_climate(gdir,cfg.PATHS['plot_dir'])
-            #plot_length(gdir,cfg.PATHS['plot_dir'])
+        #plot_length_only(gdir,cfg.PATHS['plot_dir'],1865,2000)
             #plot_issue(gdir,cfg.PATHS['plot_dir'])
         plot_each_solution(gdir,cfg.PATHS['plot_dir'],-1,best=True)
             #plot_objective_surface(gdir, cfg.PATHS['plot_dir'], -1, best=True)
+        print(gdir.rgi_id+' finished')

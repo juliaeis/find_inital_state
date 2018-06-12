@@ -146,14 +146,14 @@ if __name__ == '__main__':
             #{'type': 'ineq', 'fun': con5}
             )
 
-    res = minimize(objfunc, x0,method='COBYLA',tol=1e-04,constraints=cons,options={'maxiter':5000,'rhobeg' :50})
+    #res = minimize(objfunc, x0,method='COBYLA',tol=1e-04,constraints=cons,options={'maxiter':5000,'rhobeg' :50})
     #res = minimize(objfunc, x0, method='Nelder-Mead', tol=1e-04, options={'maxiter': 5000})
 
 
     import pickle
     #pickle._dump(res.x,open('result_15pt_noCon5.txt','wb'))
-    result=res.x
-    #result=pickle.load(open('result_15pt.txt','rb'))
+    #result=res.x
+    result=pickle.load(open('result_200pt.txt','rb'))
 
     start_model= run_model(result)
     print(objfunc(result))

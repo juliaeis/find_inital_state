@@ -672,4 +672,171 @@ def plot_length_change(gdir,plot_dir,t0,te,synthetic_exp=True):
     return
 
 
+def test_animation(gdir):
 
+    import matplotlib.pyplot as plt
+    from matplotlib import animation
+    mpl.style.use('default')
+
+
+    fig = plt.figure(figsize=(20,15))
+    ax1 = plt.axes()
+    fill = ax1.fill_between([], [],color='grey',alpha=0.1,label='total range', lw=2)
+    fill2 = ax1.fill_between([], [], color='C0', alpha=0.5,label='IQR', lw=2)
+    time_text = ax1.text(0.6, 0.95, '', transform=ax1.transAxes, size=25)
+
+
+    plotlays, plotcols, label  = [2], ["orange","red","C0"] , ['default', 'best objective', 'median']
+    lines = []
+    for index in range(3):
+        lobj = ax1.plot([],[],lw=2,color=plotcols[index],label=label[index])[0]
+        lines.append(lobj)
+
+    fls = gdir.read_pickle('model_flowlines')
+    past_climate = PastMassBalance(gdir)
+    past_model = FluxBasedModel(copy.deepcopy(fls), mb_model=past_climate,
+                                glen_a=cfg.A, y0=1865)
+    # best objective model
+    experiment = gdir.read_pickle('synthetic_experiment')
+    df,best = find_best_objective(gdir,experiment['y_t'].fls,1865,2000)
+    best_fls = copy.deepcopy(df.loc[best,'1865'].fls)
+    best_model = FluxBasedModel(copy.deepcopy(best_fls), mb_model=past_climate,
+                                glen_a=cfg.A, y0=1865)
+
+
+    surface = pd.DataFrame()
+    for i in df.index:
+        surface = surface.append([df.loc[i,'1865'].fls[-1].surface_h],ignore_index=True)
+
+    # median model
+    median_fls = copy.deepcopy(gdir.read_pickle('model_flowlines'))
+    median_fls[-1].surface_h = copy.deepcopy(surface.median(axis=0).values)
+
+    median_model = FluxBasedModel(copy.deepcopy(median_fls), mb_model=past_climate,
+                                glen_a=cfg.A, y0=1865)
+
+    # quant_25 model
+    quant25_fls = copy.deepcopy(gdir.read_pickle('model_flowlines'))
+    quant25_fls[-1].surface_h = copy.deepcopy(surface.quantile(q=0.25, axis=0).values)
+
+    quant25_model = FluxBasedModel(copy.deepcopy(quant25_fls),
+                                  mb_model=past_climate,
+                                  glen_a=cfg.A, y0=1865)
+
+    # quant_75 model
+    quant75_fls = copy.deepcopy(gdir.read_pickle('model_flowlines'))
+    quant75_fls[-1].surface_h = copy.deepcopy(
+        surface.quantile(q=0.75, axis=0).values)
+
+    quant75_model = FluxBasedModel(copy.deepcopy(quant75_fls),
+                                   mb_model=past_climate,
+                                   glen_a=cfg.A, y0=1865)
+
+    #min
+    min_fls = copy.deepcopy(gdir.read_pickle('model_flowlines'))
+    min_fls[-1].surface_h = copy.deepcopy(surface.min(axis=0).values)
+
+    min_model = FluxBasedModel(copy.deepcopy(min_fls),
+                                  mb_model=past_climate,
+                                  glen_a=cfg.A, y0=1865)
+
+    #max
+    max_fls = copy.deepcopy(gdir.read_pickle('model_flowlines'))
+    max_fls[-1].surface_h = copy.deepcopy(surface.max(axis=0).values)
+
+    max_model = FluxBasedModel(copy.deepcopy(max_fls),
+                                  mb_model=past_climate,
+                                  glen_a=cfg.A, y0=1865)
+
+    x = np.arange(fls[-1].nx) * fls[-1].dx * fls[-1].map_dx
+
+    def init():
+        ax1.plot(x, fls[-1].bed_h, 'k')
+        time_text.set_text('')
+        for line in lines:
+            line.set_data([],[])
+        return lines
+
+
+
+    def animate(t):
+        if t ==1865:
+            fls = gdir.read_pickle('model_flowlines')
+            past_model.reset_flowlines(copy.deepcopy(fls))
+            past_model.reset_y0(1865)
+
+            best_model.reset_flowlines(copy.deepcopy(df.loc[best,'1865'].fls))
+            best_model.reset_y0(1865)
+
+            fls = gdir.read_pickle('model_flowlines')
+            fls[-1].surface_h = surface.median(axis=0).values
+            median_model.reset_flowlines(copy.deepcopy(fls))
+            median_model.reset_y0(1865)
+
+            fls = gdir.read_pickle('model_flowlines')
+            fls[-1].surface_h = surface.quantile(0.25,axis=0).values
+            quant25_model.reset_flowlines(copy.deepcopy(fls))
+            quant25_model.reset_y0(1865)
+
+            fls = gdir.read_pickle('model_flowlines')
+            fls[-1].surface_h = surface.quantile(0.75, axis=0).values
+            quant75_model.reset_flowlines(copy.deepcopy(fls))
+            quant75_model.reset_y0(1865)
+
+            fls = gdir.read_pickle('model_flowlines')
+            fls[-1].surface_h = surface.min(axis=0).values
+            min_model.reset_flowlines(copy.deepcopy(fls))
+            min_model.reset_y0(1865)
+
+            fls = gdir.read_pickle('model_flowlines')
+            fls[-1].surface_h = surface.max(axis=0).values
+            max_model.reset_flowlines(copy.deepcopy(fls))
+            max_model.reset_y0(1865)
+
+
+        else:
+            past_model.run_until(t)
+            best_model.run_until(t)
+            median_model.run_until(t)
+            min_model.run_until(t)
+            max_model.run_until(t)
+            quant25_model.run_until(t)
+            quant75_model.run_until(t)
+
+        time_text.set_text('time = %.1f' % t)
+
+        y1 = past_model.fls[-1].surface_h
+        y2 = best_model.fls[-1].surface_h
+        y3 = median_model.fls[-1].surface_h
+        y4 = min_model.fls[-1].surface_h
+        y5 = max_model.fls[-1].surface_h
+        y6 = quant25_model.fls[-1].surface_h
+        y7 = quant75_model.fls[-1].surface_h
+
+        xlist = [x, x, x]
+        ylist = [y1, y2, y3]
+
+        fill = ax1.fill_between(x,y4,y5,color='grey',alpha=0.2,label='total range')
+        fill2 = ax1.fill_between(x,y6,y7,color='C0',alpha=0.5, label = 'IQR')
+
+        #for index in range(0,1):
+        for lnum,line in enumerate(lines):
+            line.set_data(xlist[lnum], ylist[lnum]) # set data for each line separately.
+
+        return (fill2,)+tuple(lines)+(fill,)  + (time_text,)
+
+    # call the animator.  blit=True means only re-draw the parts that have changed.
+    ani = animation.FuncAnimation(fig, animate, frames=range(1865, 2005, 5),
+                        init_func=init, blit=True)
+
+    plt.legend(loc='best',fontsize=20)
+    plt.tick_params(axis='both', which='major', labelsize=25)
+    plt.xlabel('Distance along the Flowline (m)',fontsize=25)
+    plt.ylabel('Altitude (m)',fontsize=25)
+    if gdir.name != "":
+        plt.title(gdir.rgi_id + ': ' + gdir.name, fontsize=30)
+    else:
+        plt.title(gdir.rgi_id, fontsize=30)
+    #ani.save(os.path.join(gdir.dir,'ani.pdf'))
+
+    plt.show()

@@ -223,8 +223,8 @@ if __name__ == '__main__':
     if ON_CLUSTER:
         cfg.PATHS['working_dir'] = os.environ.get("S_WORKDIR")
     else:
-        WORKING_DIR = '/home/juliaeis/Dokumente/OGGM/work_dir/find_initial_state/opt_flowlines'
-        #WORKING_DIR = '/home/juliaeis/Dokumente/OGGM/work_dir/find_initial_state/opt_experiment'
+        #WORKING_DIR = '/home/juliaeis/Dokumente/OGGM/work_dir/find_initial_state/opt_flowlines'
+        WORKING_DIR = '/home/juliaeis/Dokumente/OGGM/work_dir/find_initial_state/opt_experiment'
         utils.mkdir(WORKING_DIR, reset=False)
         cfg.PATHS['working_dir'] = WORKING_DIR
 
@@ -263,7 +263,7 @@ if __name__ == '__main__':
     #synthetic_experiments(gdirs)
     #run_optimization(gdirs,synthetic_exp=True)
 
-    for gdir in gdirs:
+    for gdir in gdirs[:1]:
         #plot_experiment(gdir,cfg.PATHS['plot_dir'])
         #plot_climate(gdir,cfg.PATHS['plot_dir'])
 
@@ -273,7 +273,9 @@ if __name__ == '__main__':
         #plot_widths(gdir,cfg.PATHS['plot_dir'],-1,synthetic_exp=True)
         #plot_each_widths(gdir, cfg.PATHS['plot_dir'], -1,synthetic_exp=True)
 
-        plot_length_only(gdir,cfg.PATHS['plot_dir'],1865,2000,synthetic_exp=False)
+        #plot_length_only(gdir,cfg.PATHS['plot_dir'],1865,2000,synthetic_exp=False)
         #plot_length_change(gdir,cfg.PATHS['plot_dir'],1865,2000,synthetic_exp=False)
 
+        #plot_animation(gdir,cfg.PATHS['plot_dir'],1865,2000,synthetic_exp=False)
+        test_animation(gdir)
         print(gdir.rgi_id+' finished')

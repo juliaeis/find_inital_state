@@ -37,8 +37,8 @@ def find_best_objective(gdir,y_te,t0,te):
             df = df.append(pd.DataFrame([res],columns=[str(t0),str(te)+'_obs']),
                            ignore_index=True)
     df['objective_'+str(te)] = df[str(te)+'_obs'].apply((lambda x: objective_value(y_te,x.fls)))
-    df['objective_'+str(te)].argmin
-    return df, df['objective_'+str(te)].argmin()
+    df['objective_'+str(te)].idxmin
+    return df, df['objective_'+str(te)].idxmin
 
 def objective_value(fls1,fls2):
     return(np.sum(abs(fls1[-1].surface_h-fls2[-1].surface_h)**2)+ \
@@ -238,7 +238,7 @@ if __name__ == '__main__':
 
     #initialize OGGM and set up the default run parameters
     cfg.initialize()
-    ON_CLUSTER = True
+    ON_CLUSTER = False
     #Local paths
     if ON_CLUSTER:
         cfg.PATHS['working_dir'] = os.environ.get("S_WORKDIR")
@@ -275,12 +275,12 @@ if __name__ == '__main__':
     rgidf = salem.read_shapefile(rgi)
 
     # Initialize working directories
-    gdir = workflow.init_glacier_regions(rgidf[rgidf.RGIId== 'RGI50-11.00897'],reset=True)[0]
-    prepare_for_initializing([gdir])
+    gdir = workflow.init_glacier_regions(rgidf[rgidf.RGIId== 'RGI50-11.00897'])[0]
+    #prepare_for_initializing([gdir])
 
     result = pd.Series()
     fls = gdir.read_pickle('model_flowlines')
-
+    '''
     fls_obs = deepcopy(fls)
     i = 1
     for yr in np.arange(2000,1850,-50):
@@ -294,15 +294,64 @@ if __name__ == '__main__':
         i=i+1
 
     '''
-    result = pickle.load(open(os.path.join(gdir.dir,'result_multistep2'),'rb'))
+    result = pickle.load(open(os.path.join(gdir.dir,'result_multistep3'),'rb'))
+    x = np.arange(fls[-1].nx) * fls[-1].dx * fls[-1].map_dx
+    i = 0
+    plt.figure()
+    grid = plt.GridSpec(2, 4, wspace=0.4, hspace=0.3)
+
+    for yr in np.arange(1850,2001, 50):
+        plt.subplot(grid[0,i])
+        if yr !=1850:
+            plt.plot(x,result[str(yr)+'_obs'].dropna().loc[best_id].fls[-1].surface_h,
+                     'b')
+        if yr != 2000:
+            for model in result[str(yr)].dropna():
+                plt.plot(x,model.fls[-1].surface_h,'grey',alpha=0.5)
+            best_id = result['objective_' + str(yr+50)].idxmin()
+            plt.plot(x,result[str(yr)].dropna().loc[best_id].fls[-1].surface_h, 'r')
+        if yr == 2000:
+            plt.plot(x,fls[-1].surface_h,'k')
+        plt.plot(x,model.fls[-1].bed_h,'k')
+        i = i+1
 
 
-    x = np.arange(fls[-1].nx) *fls[-1].dx * fls[-1].map_dx
+    plt.subplot(grid[1,:])
+    for yr in np.arange(1850, 2000, 50):
+        plt.axvline(x=yr, color='k')
+        best_id = result['objective_' + str(yr + 50)].idxmin()
+        list = result['objective_' + str(yr + 50)].dropna().index
+        if not best_id in list:
+            list = list.append(pd.Index([best_id]))
+        for i in list:
+
+            fls = deepcopy(result[str(yr)].dropna().loc[i].fls)
+            past_climate = PastMassBalance(gdir)
+            model = FluxBasedModel(fls, mb_model=past_climate,
+                                 glen_a=cfg.A, y0=yr)
+            if i == best_id:
+                plt.plot(model.yr,model.length_m,'ro')
+                a, b = model.run_until_and_store(yr+50)
+                b.length_m.plot(color='red')
+                plt.plot(model.yr, model.length_m, 'bo')
+            else:
+                a, b = model.run_until_and_store(yr+50)
+                b.length_m.plot( color='grey', alpha=0.3)
+        if yr==1850:
+            a,b = model.run_until_and_store(2000)
+            b.length_m.plot(linestyle=':', color='red')
+
+
+    plt.xlim((1850, 2000))
+    plt.show()
+    '''
+    plt.figure(1)
+
 
     plt.subplot(331)
     for model in result['1900'].dropna():
         plt.plot(x,model.fls[-1].surface_h, 'grey')
-    best = result['objective_1950'].dropna().argmin()
+    best = result['objective_1950'].dropna().idxmin
     plt.plot(x,result['1900'].dropna().loc[best].fls[-1].surface_h, 'r')
     plt.plot(x,result['1950'].dropna().loc[0].fls[-1].bed_h, 'k')
     plt.title('1900')
@@ -311,9 +360,9 @@ if __name__ == '__main__':
     plt.subplot(332)
     for model in result['1950'].dropna():
         plt.plot(x,model.fls[-1].surface_h,'grey')
-    best = result['objective_2000'].dropna().argmin()
+    best = result['objective_2000'].dropna().idxmin
     plt.plot(x,result['1950'].dropna().loc[best].fls[-1].surface_h, 'r')
-    best2 = result['objective_1950'].dropna().argmin()
+    best2 = result['objective_1950'].dropna().idxmin
     plt.plot(x, result['1950_obs'].dropna().loc[best2].fls[-1].surface_h, 'k')
     plt.plot(x,result['1950'].dropna().loc[0].fls[-1].bed_h,'k')
     plt.title(1950)
@@ -321,11 +370,13 @@ if __name__ == '__main__':
     plt.subplot(333)
     for model in result['2000_obs'].dropna():
         plt.plot(x,model.fls[-1].surface_h, 'grey')
-    best = result['objective_2000'].dropna().argmin()
+    best = result['objective_2000'].dropna().idxmin
     plt.plot(x,result['2000_obs'].dropna().loc[best].fls[-1].surface_h, 'r')
     plt.plot(x,fls[-1].surface_h,'k')
     plt.plot(x,result['1950'].dropna().loc[0].fls[-1].bed_h, 'k')
     plt.title(2000)
+
+
 
     plt.subplot(312)
     plt.axvline(x=1950,color='k')
@@ -336,57 +387,59 @@ if __name__ == '__main__':
     obs = FluxBasedModel(fls, mb_model=past_climate,
                                 glen_a=cfg.A, y0=2000)
     plt.plot(2000,obs.length_m,'ko')
-    best_id = result['objective_2000'].argmin()
-    for index, model in result.iterrows():
+    best_id = result['objective_2000'].idxmin()
+    for index, model in result.head(10).iterrows():
         if type(model['1950']) != float:
             past_model = FluxBasedModel(model['1950'].fls, mb_model=past_climate,
                                         glen_a=cfg.A, y0=1950)
             l_t0 = past_model.length_m
             a, b = past_model.run_until_and_store(2000)
             if index != best_id:
-                plt.plot(b.length_m.to_series(), 'grey', alpha=0.5)
+                b.length_m.plot(color='grey',alpha=0.5)
                 plt.plot(1950,l_t0,marker='o',color='grey')
             else:
-                plt.plot(b.length_m.to_series(), 'r')
+                b.length_m.plot(color='red')
                 plt.plot(1950, l_t0, 'ro')
 
-    best_id = result['objective_1950'].argmin()
-    for index, model in result.iterrows():
+
+    best_id = result['objective_1950'].idxmin()
+    for index, model in result.head(60).iterrows():
         if type(model['1900']) != float:
             past_model = FluxBasedModel(model['1900'].fls, mb_model=past_climate,
                                         glen_a=cfg.A, y0=1900)
             l_t0 = past_model.length_m
             a, b = past_model.run_until_and_store(1950)
             if index != best_id:
-                plt.plot(b.length_m.to_series(), 'grey', alpha=0.5)
+                b.length_m.plot(color='grey', alpha=0.5)
                 plt.plot(1900,l_t0,marker='o',color='grey')
             else:
-                plt.plot(b.length_m.to_series(), 'r')
+                b.length_m.plot(color='red')
                 plt.plot(1900, l_t0, 'ro')
 
 
-    plt.xlim((1900,2001))
+    plt.xlim((1850,2001))
+
 
     plt.subplot(337)
     for model in result['1900'].dropna():
         plt.plot(x, model.fls[-1].widths, 'grey')
-    best = result['objective_1950'].dropna().argmin()
+    best = result['objective_1950'].dropna().idxmin
     plt.plot(x, result['1900'].dropna().loc[best].fls[-1].widths, 'r')
     plt.title('1900')
 
     plt.subplot(338)
     for model in result['1950'].dropna():
         plt.plot(x, model.fls[-1].widths, 'grey')
-    best = result['objective_2000'].dropna().argmin()
+    best = result['objective_2000'].dropna().idxmin
     plt.plot(x, result['1950'].dropna().loc[best].fls[-1].widths, 'r')
-    best2 = result['objective_1950'].dropna().argmin()
+    best2 = result['objective_1950'].dropna().idxmin
     plt.plot(x, result['1950_obs'].dropna().loc[best2].fls[-1].widths, 'k')
     plt.title(1950)
 
     plt.subplot(339)
     for model in result['2000_obs'].dropna():
         plt.plot(x, model.fls[-1].widths, 'grey')
-    best = result['objective_2000'].dropna().argmin()
+    best = result['objective_2000'].dropna().idxmin
     plt.plot(x, result['2000_obs'].dropna().loc[best].fls[-1].widths, 'r')
     plt.plot(x, fls[-1].widths, 'k')
     plt.title(2000)

@@ -223,7 +223,8 @@ if __name__ == '__main__':
     if ON_CLUSTER:
         cfg.PATHS['working_dir'] = os.environ.get("S_WORKDIR")
     else:
-        WORKING_DIR = '/home/juliaeis/Dokumente/OGGM/work_dir/find_initial_state/reconstruction_real_flowlines'
+        WORKING_DIR = '/home/juliaeis/Dokumente/OGGM/work_dir/find_initial_state/opt_flowlines'
+        #WORKING_DIR = '/home/juliaeis/Dokumente/OGGM/work_dir/find_initial_state/opt_experiment'
         utils.mkdir(WORKING_DIR, reset=False)
         cfg.PATHS['working_dir'] = WORKING_DIR
 
@@ -253,24 +254,26 @@ if __name__ == '__main__':
 
     rgi = get_demo_file('rgi_oetztal.shp')
     rgidf = salem.read_shapefile(rgi)
-    gdirs = workflow.init_glacier_regions(rgidf[rgidf.RGIId != 'RGI50-11.00687'])
+    gdirs = workflow.init_glacier_regions(rgidf[rgidf.RGIId != 'RGI50-11.00945'])
     #gdirs = workflow.init_glacier_regions(rgidf)
 
     workflow.execute_entity_task(tasks.glacier_masks, gdirs)
     #prepare_for_initializing(gdirs)
-    gdirs = gdirs
 
     #synthetic_experiments(gdirs)
     #run_optimization(gdirs,synthetic_exp=True)
 
     for gdir in gdirs:
-        #if gdir.rgi_id.endswith('0897'):
-            #print(gdir.dir)
-            #plot_experiment(gdir,cfg.PATHS['plot_dir'])
-        #plot_surface(gdir,cfg.PATHS['plot_dir'],-1)
-            #plot_climate(gdir,cfg.PATHS['plot_dir'])
-        #plot_length_only(gdir,cfg.PATHS['plot_dir'],1865,2000)
-            #plot_issue(gdir,cfg.PATHS['plot_dir'])
-        plot_each_solution(gdir,cfg.PATHS['plot_dir'],-1,best=True)
-            #plot_objective_surface(gdir, cfg.PATHS['plot_dir'], -1, best=True)
+        #plot_experiment(gdir,cfg.PATHS['plot_dir'])
+        #plot_climate(gdir,cfg.PATHS['plot_dir'])
+
+        #plot_surface(gdir,cfg.PATHS['plot_dir'],-1,synthetic_exp=False)
+        #plot_each_surface(gdir, cfg.PATHS['plot_dir'], -1,synthetic_exp=False)
+
+        #plot_widths(gdir,cfg.PATHS['plot_dir'],-1,synthetic_exp=True)
+        #plot_each_widths(gdir, cfg.PATHS['plot_dir'], -1,synthetic_exp=True)
+
+        plot_length_only(gdir,cfg.PATHS['plot_dir'],1865,2000,synthetic_exp=False)
+        #plot_length_change(gdir,cfg.PATHS['plot_dir'],1865,2000,synthetic_exp=False)
+
         print(gdir.rgi_id+' finished')

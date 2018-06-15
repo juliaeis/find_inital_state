@@ -815,7 +815,7 @@ def test_animation(gdir):
 
         xlist = [x, x, x]
         ylist = [y1, y2, y3]
-
+        ax1.collections.clear()
         fill = ax1.fill_between(x,y4,y5,color='grey',alpha=0.2,label='total range')
         fill2 = ax1.fill_between(x,y6,y7,color='C0',alpha=0.5, label = 'IQR')
 
@@ -837,6 +837,6 @@ def test_animation(gdir):
         plt.title(gdir.rgi_id + ': ' + gdir.name, fontsize=30)
     else:
         plt.title(gdir.rgi_id, fontsize=30)
-    #ani.save(os.path.join(gdir.dir,'ani.pdf'))
+    ani.save(os.path.join(gdir.dir,'surface_animation.mp4'))
 
-    plt.show()
+    #plt.show()

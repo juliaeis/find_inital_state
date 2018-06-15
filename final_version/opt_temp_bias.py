@@ -263,7 +263,7 @@ if __name__ == '__main__':
     #synthetic_experiments(gdirs)
     #run_optimization(gdirs,synthetic_exp=True)
 
-    for gdir in gdirs[:1]:
+    for gdir in gdirs[11:]:
         #plot_experiment(gdir,cfg.PATHS['plot_dir'])
         #plot_climate(gdir,cfg.PATHS['plot_dir'])
 
@@ -277,5 +277,8 @@ if __name__ == '__main__':
         #plot_length_change(gdir,cfg.PATHS['plot_dir'],1865,2000,synthetic_exp=False)
 
         #plot_animation(gdir,cfg.PATHS['plot_dir'],1865,2000,synthetic_exp=False)
-        test_animation(gdir)
+        try:
+            test_animation(gdir)
+        except:
+            pass
         print(gdir.rgi_id+' finished')

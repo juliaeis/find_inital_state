@@ -311,7 +311,7 @@ def find_possible_glaciers(gdir,experiment,y0):
 
 if __name__ == '__main__':
     cfg.initialize()
-    ON_CLUSTER = False
+    ON_CLUSTER = True
     # Local paths
     if ON_CLUSTER:
         cfg.PATHS['working_dir'] = os.environ.get("S_WORKDIR")
@@ -354,8 +354,8 @@ if __name__ == '__main__':
     prepare_for_initializing(gdirs)
 
     for gdir in gdirs:
-        #if gdir.rgi_id not in ['RGI50-11.00945','RGI50-11.00779']:
-        if gdir.rgi_id == 'RGI50-11.00698':
+        if gdir.rgi_id not in ['RGI50-11.00945','RGI50-11.00779']:
+        #if gdir.rgi_id == 'RGI50-11.00698':
             #fig,ax1 = plt.subplots()
             #fig, ax2 = plt.subplots()
             try:

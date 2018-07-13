@@ -82,7 +82,7 @@ def plot_volume_dif_time(gdir,dict,experiment):
 
 
 def plot_surface_col(gdir,df,experiment,ys):
-    df = df[df['objective']<=100]
+    #df = df[df['objective']<=100]
     x = np.arange(experiment['y_t'].fls[-1].nx) * \
         experiment['y_t'].fls[-1].dx * experiment['y_t'].fls[-1].map_dx
     fig = plt.figure(figsize=(20,15))

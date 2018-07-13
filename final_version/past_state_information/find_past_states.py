@@ -22,7 +22,7 @@ from oggm.core.inversion import mass_conservation_inversion
 from oggm.core.massbalance import PastMassBalance, RandomMassBalance
 from oggm.core.flowline import FluxBasedModel, FileModel
 FlowlineModel = partial(FluxBasedModel, inplace=False)
-#from final_version.past_state_information.plots import plot_candidates, plot_surface, plot_lenght, plot_largest_glacier,plot_surface_col,plot_volume_dif_time
+from final_version.past_state_information.plots import plot_candidates, plot_surface, plot_lenght, plot_largest_glacier,plot_surface_col,plot_volume_dif_time
 
 def objective_value(model1,model2):
     fls1 = model1.fls
@@ -272,9 +272,12 @@ def find_temp_bias_range(gdir,y0):
     for suffix in random_run_list['suffix'].head(10).values:
         rp = gdir.get_filepath('model_run', filesuffix=suffix)
         fmod = FileModel(rp)
-        t = _find_t_eq(fmod.volume_m3_ts())
-        if t > t_eq:
-            t_eq = t
+        try:
+            t = _find_t_eq(fmod.volume_m3_ts())
+            if t > t_eq:
+                t_eq = t
+        except:
+            pass
 
     all = pd.DataFrame()
     for suffix in random_run_list['suffix']:
@@ -351,27 +354,34 @@ if __name__ == '__main__':
     #gdirs = workflow.init_glacier_regions(rgidf)
 
     workflow.execute_entity_task(tasks.glacier_masks, gdirs)
-    prepare_for_initializing(gdirs)
+    #prepare_for_initializing(gdirs)
 
-    for gdir in gdirs:
+    for gdir in gdirs[3:]:
         if gdir.rgi_id not in ['RGI50-11.00945','RGI50-11.00779']:
         #if gdir.rgi_id == 'RGI50-11.00698':
-            #fig,ax1 = plt.subplots()
-            #fig, ax2 = plt.subplots()
             try:
-                experiment = gdir.read_pickle('synthetic_experiment')
-            except:
-                synthetic_experiments([gdir])
-                experiment = gdir.read_pickle('synthetic_experiment')
-            fls = gdir.read_pickle('model_flowlines')
-            yrs = np.arange(1850,1950,10)
-            results={}
-            for yr in yrs:
+                try:
+                    experiment = gdir.read_pickle('synthetic_experiment')
+                except:
+                    synthetic_experiments([gdir])
+                    experiment = gdir.read_pickle('synthetic_experiment')
+                fls = gdir.read_pickle('model_flowlines')
 
-                candidates_df = find_possible_glaciers(gdir,experiment,yr)
-                results[yr] = candidates_df
-            pickle.dump(results,open(os.path.join(gdir.dir,'results.pkl'),'wb'))
-                #plot_surface_col(gdir, candidates_df, experiment, yr)
+                yrs = np.arange(1850,1950,10)
+
+                results={}
+                for yr in yrs:
+
+                    candidates_df = find_possible_glaciers(gdir,experiment,yr)
+                    results[yr] = candidates_df
+                pickle.dump(results,open(os.path.join(gdir.dir,'results.pkl'),'wb'))
+
+                results = pickle.load(open(os.path.join(gdir.dir,'results.pkl'),'rb'))
+                for yr in yrs:
+                    plot_surface_col(gdir, results.get(yr), experiment, yr)
+                    print(str(yr)+'finished')
+            except:
+                pass
 
             #plot_volume_dif_time(gdir, results, experiment)
             # get only glaciers, that are equal to observation
@@ -381,4 +391,4 @@ if __name__ == '__main__':
             # plot_surface(gdir,candidates,experiment)
             #plot_largest_glacier(gdir, candidates_df, ys)
 
-        #plt.show()
+        plt.show()
